@@ -1,0 +1,71 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reminder Settings | LeetCode Streak Guardian</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <h1>Reminder Settings</h1>
+        <p class="subtitle">
+            Manage your LeetCode username and reminder preferences.
+        </p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <p role="alert">{{ message }}</p>
+            {% endfor %}
+        {% endwith %}
+
+        <section class="card">
+            <form method="POST" action="{{ url_for('main.settings') }}">
+                {{ form.hidden_tag() }}
+
+                <p>
+                    {{ form.leetcode_username.label }}<br>
+                    {{ form.leetcode_username(
+                        autocomplete="off",
+                        maxlength="50",
+                        placeholder="Your LeetCode username"
+                    ) }}
+                    {% for error in form.leetcode_username.errors %}
+                        <span role="alert">{{ error }}</span>
+                    {% endfor %}
+                </p>
+
+                <p>
+                    {{ form.reminder_email.label }}<br>
+                    {{ form.reminder_email(
+                        autocomplete="email",
+                        maxlength="254",
+                        placeholder="name@example.com"
+                    ) }}
+                    {% for error in form.reminder_email.errors %}
+                        <span role="alert">{{ error }}</span>
+                    {% endfor %}
+                </p>
+
+                <p>
+                    {{ form.reminder_enabled() }}
+                    {{ form.reminder_enabled.label }}
+                </p>
+
+                <p>
+                    <small>
+                        When enabled, Streak Guardian checks your daily activity and sends an email alert if your streak is at risk before the daily UTC reset (23:59 UTC).
+                    </small>
+                </p>
+
+                {{ form.submit(class="btn btn-primary") }}
+            </form>
+        </section>
+
+        <p>
+            <a href="{{ url_for('main.dashboard') }}">Back to dashboard</a>
+        </p>
+    </main>
+</body>
+</html>

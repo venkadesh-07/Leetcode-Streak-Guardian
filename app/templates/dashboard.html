@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard | LeetCode Streak Guardian</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <header class="dashboard-header">
+            <div>
+                <h1>LeetCode Streak Guardian</h1>
+                <p class="subtitle">Signed in as <strong>{{ user.email }}</strong></p>
+            </div>
+            <form method="POST" action="{{ url_for('main.logout') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-secondary">Log out</button>
+            </form>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <!-- Streak Guardian Hero Card -->
+        <section class="card streak-card">
+            <h2>Daily Streak Status</h2>
+            {% if not user.leetcode_username %}
+                <div class="status-box status-warning">
+                    <p><strong>LeetCode username not configured!</strong></p>
+                    <p>Add your public LeetCode username in settings to begin tracking your streak.</p>
+                    <a href="{{ url_for('main.settings') }}" class="btn btn-primary">Configure LeetCode Username</a>
+                </div>
+            {% else %}
+                <div class="streak-metrics">
+                    <div class="metric-item">
+                        <span class="metric-number">🔥 {{ user.current_streak }}</span>
+                        <span class="metric-label">Current Streak Days</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-number">⚡ {{ user.today_submissions }}</span>
+                        <span class="metric-label">Submissions Today (UTC)</span>
+                    </div>
+                </div>
+
+                <div class="status-box {% if user.is_active_today is true %}status-protected{% elif user.is_active_today is false %}status-risk{% else %}status-idle{% endif %}">
+                    {% if user.is_active_today is true %}
+                        <p class="status-title">✅ Streak Protected Today!</p>
+                        <p>Great job! You have logged {{ user.today_submissions }} submission(s) for {{ user.last_checked_date_utc }} (UTC).</p>
+                    {% elif user.is_active_today is false %}
+                        <p class="status-title">⚠️ Streak At Risk!</p>
+                        <p>No submissions recorded yet for {{ user.last_checked_date_utc }} (UTC). Solve a problem today to keep your streak alive!</p>
+                    {% else %}
+                        <p class="status-title">⏳ Not Checked Yet Today</p>
+                        <p>Click below to verify today's activity on LeetCode.</p>
+                    {% endif %}
+                </div>
+
+                <form id="check-activity-form" method="POST" action="{{ url_for('main.check_activity') }}" class="action-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" id="check-activity-btn" data-cooldown="{{ cooldown_remaining }}" class="btn btn-primary">
+                        Check LeetCode Activity
+                    </button>
+                </form>
+            {% endif %}
+        </section>
+
+        <!-- Account & Preferences Card -->
+        <section class="card">
+            <h2>Account & Reminders</h2>
+            <div class="info-grid">
+                <div>
+                    <span class="info-label">LeetCode Account:</span>
+                    <strong>{{ user.leetcode_username if user.leetcode_username else "Not configured" }}</strong>
+                </div>
+                <div>
+                    <span class="info-label">Reminder Email:</span>
+                    <strong>{{ user.reminder_email if user.reminder_email else "Not configured" }}</strong>
+                </div>
+                <div>
+                    <span class="info-label">Email Reminders:</span>
+                    <strong>{{ "Enabled" if user.reminder_enabled else "Disabled" }}</strong>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('main.settings') }}" class="btn btn-secondary">Manage Settings</a>
+            </div>
+        </section>
+
+        <footer>Stay consistent. Keep coding!</footer>
+    </main>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>

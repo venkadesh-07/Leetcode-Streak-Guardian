@@ -1,35 +1,31 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>LeetCode Streak Guardian</title>
-
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <main class="container">
         <h1>LeetCode Streak Guardian</h1>
-        <p class="subtitle">
-            Your personal daily coding reminder.
-        </p>
+        <p class="subtitle">Your personal daily coding reminder.</p>
 
         <section class="card">
-            <h2>Daily Coding Goal</h2>
-            <p>Solve at least one LeetCode problem today.</p>
+            <h2>Protect Your Coding Streak</h2>
+            <p>Solve at least one LeetCode problem every day.</p>
+            <p>Create an account to manage your coding reminders.</p>
 
-            <div class="status">
-                <span class="status-dot"></span>
-                <p id="status">Activity checker not connected yet.</p>
-            </div>
+            <p>
+                <a href="{{ url_for('main.register') }}">Create Account</a>
+            </p>
+            <p>
+                Already have an account?
+                <a href="{{ url_for('main.login') }}">Log In</a>
+            </p>
         </section>
 
-        <footer>
-            Stay consistent. Keep coding!
-        </footer>
+        <footer>Stay consistent. Keep coding!</footer>
     </main>
 </body>
 </html>
