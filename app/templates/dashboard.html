@@ -4,14 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Dashboard | LeetCode Streak Guardian</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <main class="container">
         <header class="dashboard-header">
             <div>
+                <div class="brand-badge">
+                    <span class="brand-dot"></span> Live Guardian
+                </div>
                 <h1>LeetCode Streak Guardian</h1>
-                <p class="subtitle">Signed in as <strong>{{ user.email }}</strong></p>
+                <p class="subtitle" style="margin-bottom: 0;">Signed in as <strong>{{ user.email }}</strong></p>
             </div>
             <form method="POST" action="{{ url_for('main.logout') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -30,9 +36,11 @@
             <h2>Daily Streak Status</h2>
             {% if not user.leetcode_username %}
                 <div class="status-box status-warning">
-                    <p><strong>LeetCode username not configured!</strong></p>
+                    <p class="status-title">⚠️ LeetCode username not configured!</p>
                     <p>Add your public LeetCode username in settings to begin tracking your streak.</p>
-                    <a href="{{ url_for('main.settings') }}" class="btn btn-primary">Configure LeetCode Username</a>
+                    <div style="margin-top: 12px;">
+                        <a href="{{ url_for('main.settings') }}" class="btn btn-primary">Configure LeetCode Username</a>
+                    </div>
                 </div>
             {% else %}
                 <div class="streak-metrics">
@@ -70,19 +78,21 @@
 
         <!-- Account & Preferences Card -->
         <section class="card">
-            <h2>Account & Reminders</h2>
+            <h2>⚙️ Account & Reminders</h2>
             <div class="info-grid">
-                <div>
-                    <span class="info-label">LeetCode Account:</span>
-                    <strong>{{ user.leetcode_username if user.leetcode_username else "Not configured" }}</strong>
+                <div class="info-row">
+                    <span class="info-label">LeetCode Account</span>
+                    <span class="info-value">{{ user.leetcode_username if user.leetcode_username else "Not configured" }}</span>
                 </div>
-                <div>
-                    <span class="info-label">Reminder Email:</span>
-                    <strong>{{ user.reminder_email if user.reminder_email else "Not configured" }}</strong>
+                <div class="info-row">
+                    <span class="info-label">Reminder Email</span>
+                    <span class="info-value">{{ user.reminder_email if user.reminder_email else "Not configured" }}</span>
                 </div>
-                <div>
-                    <span class="info-label">Email Reminders:</span>
-                    <strong>{{ "Enabled" if user.reminder_enabled else "Disabled" }}</strong>
+                <div class="info-row">
+                    <span class="info-label">Email Reminders</span>
+                    <span class="info-value" style="color: {{ 'var(--success-text)' if user.reminder_enabled else 'var(--text-muted)' }};">
+                        {{ "● Enabled (Every 4h)" if user.reminder_enabled else "○ Disabled" }}
+                    </span>
                 </div>
             </div>
             <div class="card-footer">
@@ -90,7 +100,12 @@
             </div>
         </section>
 
-        <footer>Stay consistent. Keep coding!</footer>
+        <footer>
+            <div class="footer-badge">
+                <span>🛡️</span> Streak Guardian &bull; 24/7 Autonomous Protection
+            </div>
+            <p>Stay consistent. Keep coding!</p>
+        </footer>
     </main>
 
     <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
