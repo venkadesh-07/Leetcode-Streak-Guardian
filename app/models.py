@@ -49,6 +49,10 @@ class User(UserMixin, db.Model):
         db.String(10),
         nullable=True,
     )
+    last_reminder_sent_at = db.Column(
+        db.Integer,
+        nullable=True,
+    )
     reminder_enabled = db.Column(
         db.Boolean,
         nullable=False,

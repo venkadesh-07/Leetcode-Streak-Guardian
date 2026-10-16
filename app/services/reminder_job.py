@@ -7,6 +7,7 @@ Designed to be executed via Flask CLI command or scheduled background runner.
 
 from datetime import datetime, timezone
 import logging
+import time
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
@@ -16,15 +17,16 @@ from app.services.email_service import send_streak_reminder
 
 logger = logging.getLogger(__name__)
 
+REMINDER_INTERVAL_SECONDS = 4 * 3600  # 4 hours
+
 
 def run_reminder_check():
     """
-    Check all users with active reminders and dispatch streak risk alerts if inactive.
-
-    Returns:
-        dict: Summary statistics of the reminder check.
+    Check all users with active reminders and dispatch streak risk alerts every 4 hours
+    until at least 1 problem is completed that day.
     """
     today_utc = datetime.now(timezone.utc).date().isoformat()
+    now_ts = int(time.time())
 
     eligible_users = db.session.execute(
         db.select(User).filter(
@@ -39,18 +41,12 @@ def run_reminder_check():
         "eligible_users": len(eligible_users),
         "reminders_sent": 0,
         "already_protected": 0,
-        "already_reminded_today": 0,
+        "interval_cooldown": 0,
         "errors": [],
     }
 
     for user in eligible_users:
         user_identifier = f"User(id={user.id}, email={user.email})"
-
-        # Avoid spamming the user if a reminder was already dispatched today
-        if user.last_reminder_sent_date_utc == today_utc:
-            stats["already_reminded_today"] += 1
-            logger.info(f"{user_identifier}: Reminder already sent for {today_utc}. Skipping.")
-            continue
 
         try:
             result = check_daily_activity(user.leetcode_username)
@@ -70,20 +66,27 @@ def run_reminder_check():
             stats["already_protected"] += 1
             logger.info(f"{user_identifier}: Streak protected today ({result['submissions_today']} submissions). No alert needed.")
         else:
-            # Dispatch reminder
-            send_res = send_streak_reminder(
-                user=user,
-                submissions_today=result["submissions_today"],
-                current_streak=result["current_streak"],
-                date_utc=today_utc,
-            )
-
-            if send_res.get("success"):
-                user.last_reminder_sent_date_utc = today_utc
-                stats["reminders_sent"] += 1
-                logger.info(f"{user_identifier}: Streak reminder sent successfully (mode: {send_res.get('mode')}).")
+            # Streak at risk! Check if 4 hours have elapsed since the last reminder
+            # Allow 100s buffer for scheduler minor timing variances
+            if user.last_reminder_sent_at and (now_ts - user.last_reminder_sent_at) < (REMINDER_INTERVAL_SECONDS - 100):
+                stats["interval_cooldown"] += 1
+                logger.info(f"{user_identifier}: Reminder already sent within last 4 hours. Skipping.")
             else:
-                stats["errors"].append(f"{user_identifier}: Failed to dispatch reminder ({send_res.get('error')})")
+                # Dispatch reminder
+                send_res = send_streak_reminder(
+                    user=user,
+                    submissions_today=result["submissions_today"],
+                    current_streak=result["current_streak"],
+                    date_utc=today_utc,
+                )
+
+                if send_res.get("success"):
+                    user.last_reminder_sent_date_utc = today_utc
+                    user.last_reminder_sent_at = now_ts
+                    stats["reminders_sent"] += 1
+                    logger.info(f"{user_identifier}: Streak reminder sent successfully (mode: {send_res.get('mode')}).")
+                else:
+                    stats["errors"].append(f"{user_identifier}: Failed to dispatch reminder ({send_res.get('error')})")
 
         try:
             db.session.commit()
@@ -92,6 +95,7 @@ def run_reminder_check():
             stats["errors"].append(f"{user_identifier}: Database commit failed ({exc})")
 
     return stats
+
 
 
 if __name__ == "__main__":

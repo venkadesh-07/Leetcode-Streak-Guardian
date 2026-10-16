@@ -2,8 +2,8 @@ name: Daily Streak Reminder Check
 
 on:
   schedule:
-    # Runs at 14:00, 18:00, and 21:00 UTC every day (before UTC midnight reset)
-    - cron: '0 14,18,21 * * *'
+    # Runs every 4 hours: 00:00, 04:00, 08:00, 12:00, 16:00, 20:00 UTC
+    - cron: '0 */4 * * *'
   workflow_dispatch:
 
 jobs:

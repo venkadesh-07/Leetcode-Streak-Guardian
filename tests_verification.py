@@ -341,15 +341,23 @@ class SecurityControlsTestCase(unittest.TestCase):
                 stats = run_reminder_check()
                 self.assertGreaterEqual(stats["reminders_sent"], 1)
 
-                # Verify user's last_reminder_sent_date_utc was updated
+                # Verify user's last_reminder_sent_at and date was updated
                 refreshed_user = db.session.get(User, uid)
                 self.assertEqual(refreshed_user.last_reminder_sent_date_utc, today_utc)
+                self.assertIsNotNone(refreshed_user.last_reminder_sent_at)
 
-                # Second run on the same day: must NOT send duplicate email
+                # Run 2 immediately after: must suppress due to 4-hour interval
                 stats2 = run_reminder_check()
                 self.assertEqual(stats2["reminders_sent"], 0)
-                self.assertGreaterEqual(stats2["already_reminded_today"], 1)
-        print("  [PASS] Test 13: Automated reminder scanner logic and duplicate suppression verified.")
+                self.assertGreaterEqual(stats2["interval_cooldown"], 1)
+
+            # Run 3: Once user solves a problem (active_today = True), STOP sending completely
+            mock_solved = dict(mock_activity, active_today=True, submissions_today=1)
+            with patch("app.services.reminder_job.check_daily_activity", return_value=mock_solved):
+                stats3 = run_reminder_check()
+                self.assertEqual(stats3["reminders_sent"], 0)
+                self.assertGreaterEqual(stats3["already_protected"], 1)
+        print("  [PASS] Test 13: 4-hour interval reminders and auto-stop when problem completed verified.")
 
     def test_14_cron_webhook_security(self):
         """Verify the /api/cron/check-reminders webhook endpoint enforces secret token validation and CSRF exemption."""
