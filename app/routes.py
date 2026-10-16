@@ -1,11 +1,16 @@
 
+import hmac
+import os
 import time
 
 from flask import (
     Blueprint,
+    current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
+    request,
     url_for,
 )
 from flask_login import (
@@ -16,7 +21,7 @@ from flask_login import (
 )
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from app.extensions import db ,limiter
+from app.extensions import csrf, db, limiter
 from app.forms import LoginForm, RegistrationForm, SettingsForm
 from app.models import User
 from app.services.leetcode_checker import (
@@ -260,3 +265,31 @@ def settings():
         return redirect(url_for("main.settings"))
 
     return render_template("settings.html", form=form)
+
+
+@main.route("/api/cron/check-reminders", methods=["GET", "POST"])
+@csrf.exempt
+def trigger_cron_reminders():
+    """
+    Secure webhook endpoint called by external scheduler (e.g. GitHub Actions).
+    Requires a secret token via 'secret' query param or 'Bearer <token>' in Authorization header.
+    Validates token against CRON_SECRET or SECRET_KEY.
+    """
+    secret_param = request.args.get("secret", "").strip()
+    auth_header = request.headers.get("Authorization", "").strip()
+    bearer_token = ""
+    if auth_header.startswith("Bearer "):
+        bearer_token = auth_header[7:].strip()
+
+    provided_token = secret_param or bearer_token
+
+    expected_secret = os.getenv("CRON_SECRET", "").strip()
+    if not expected_secret:
+        expected_secret = current_app.config.get("SECRET_KEY", "").strip()
+
+    if not provided_token or not expected_secret or not hmac.compare_digest(provided_token, expected_secret):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+
+    from app.services.reminder_job import run_reminder_check
+    stats = run_reminder_check()
+    return jsonify({"status": "success", "results": stats}), 200

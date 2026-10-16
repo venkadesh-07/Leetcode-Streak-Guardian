@@ -12,6 +12,7 @@ Tests:
 """
 
 import unittest
+from unittest.mock import patch
 import time
 from app import create_app
 from app.extensions import db, limiter
@@ -350,6 +351,34 @@ class SecurityControlsTestCase(unittest.TestCase):
                 self.assertGreaterEqual(stats2["already_reminded_today"], 1)
         print("  [PASS] Test 13: Automated reminder scanner logic and duplicate suppression verified.")
 
+    def test_14_cron_webhook_security(self):
+        """Verify the /api/cron/check-reminders webhook endpoint enforces secret token validation and CSRF exemption."""
+        valid_secret = self.app.config.get("SECRET_KEY")
+
+        # 1. Request without secret -> 401
+        res = self.client.get("/api/cron/check-reminders")
+        self.assertEqual(res.status_code, 401)
+
+        # 2. Request with invalid secret -> 401
+        res = self.client.get("/api/cron/check-reminders?secret=wrong-secret")
+        self.assertEqual(res.status_code, 401)
+
+        # 3. Request with valid secret via query param -> 200
+        with patch("app.services.reminder_job.run_reminder_check", return_value={"checked": 0}):
+            res = self.client.post(f"/api/cron/check-reminders?secret={valid_secret}")
+            self.assertEqual(res.status_code, 200)
+            data = res.get_json()
+            self.assertEqual(data["status"], "success")
+
+        # 4. Request with valid secret via Bearer header -> 200
+        with patch("app.services.reminder_job.run_reminder_check", return_value={"checked": 0}):
+            res = self.client.post(
+                "/api/cron/check-reminders",
+                headers={"Authorization": f"Bearer {valid_secret}"}
+            )
+            self.assertEqual(res.status_code, 200)
+        print("  [PASS] Test 14: Automated cron webhook security and Bearer authentication verified.")
+
 
 if __name__ == "__main__":
     print("\nRunning Security & Rate Limiting Verification Suite...")
@@ -357,6 +386,6 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=1)
     result = runner.run(suite)
     if result.wasSuccessful():
-        print("\nALL 13 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
+        print("\nALL 14 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
     else:
         print("\nSOME CHECKS FAILED. Review errors above.\n")

@@ -1,0 +1,18 @@
+name: Daily Streak Reminder Check
+
+on:
+  schedule:
+    # Runs at 14:00, 18:00, and 21:00 UTC every day (before UTC midnight reset)
+    - cron: '0 14,18,21 * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger-reminders:
+    name: Check LeetCode Streaks & Send Reminders
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Streak Guardian Cron Endpoint
+        run: |
+          echo "Triggering automated streak reminder check on Render..."
+          response=$(curl -s -S --max-time 120 --retry 2 --retry-delay 5 -X POST "https://leetcode-streak-guardian.onrender.com/api/cron/check-reminders?secret=${{ secrets.SECRET_KEY }}")
+          echo "Server response: $response"
