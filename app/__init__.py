@@ -135,7 +135,7 @@ def create_app(test_config=None):
         click.echo(f"Eligible Users: {stats['eligible_users']}")
         click.echo(f"Streaks Protected: {stats['already_protected']}")
         click.echo(f"Reminders Sent: {stats['reminders_sent']}")
-        click.echo(f"Already Reminded Today: {stats['already_reminded_today']}")
+        click.echo(f"Interval Cooldown (Skipped): {stats.get('interval_cooldown', 0)}")
         if stats["errors"]:
             click.echo(f"Errors encountered: {len(stats['errors'])}")
             for err in stats["errors"]:

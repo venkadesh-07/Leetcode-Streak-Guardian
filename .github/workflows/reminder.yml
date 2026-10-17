@@ -7,12 +7,34 @@ on:
   workflow_dispatch:
 
 jobs:
-  trigger-reminders:
+  check-and-remind:
     name: Check LeetCode Streaks & Send Reminders
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Streak Guardian Cron Endpoint
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
         run: |
-          echo "Triggering automated streak reminder check on Render..."
-          response=$(curl -s -S --max-time 120 --retry 2 --retry-delay 5 -X POST "https://leetcode-streak-guardian.onrender.com/api/cron/check-reminders?secret=${{ secrets.SECRET_KEY }}")
-          echo "Server response: $response"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Streak Guardian Reminder Job
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
+          SMTP_USER: ${{ secrets.SMTP_USER || 'venkadesh3948a@gmail.com' }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_USE_TLS: 'true'
+          REMINDER_SENDER_EMAIL: ${{ secrets.REMINDER_SENDER_EMAIL || 'venkadesh3948a@gmail.com' }}
+        run: |
+          echo "Executing Streak Guardian Automated Reminder Check..."
+          python -m flask --app run:app check-reminders
