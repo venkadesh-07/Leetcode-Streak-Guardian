@@ -147,6 +147,27 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    const copyTgCmdBtn = document.getElementById("copy-tg-cmd-btn");
+    if (copyTgCmdBtn) {
+        copyTgCmdBtn.addEventListener("click", function () {
+            const cmd = copyTgCmdBtn.getAttribute("data-cmd");
+            if (!cmd) return;
+            navigator.clipboard.writeText(cmd).then(function () {
+                const prevHtml = copyTgCmdBtn.innerHTML;
+                copyTgCmdBtn.classList.remove("btn-secondary");
+                copyTgCmdBtn.classList.add("btn-success");
+                copyTgCmdBtn.innerHTML = "<span>✓ Command Copied!</span>";
+                setTimeout(function () {
+                    copyTgCmdBtn.classList.remove("btn-success");
+                    copyTgCmdBtn.classList.add("btn-secondary");
+                    copyTgCmdBtn.innerHTML = prevHtml;
+                }, 2000);
+            }).catch(function () {
+                window.prompt("Copy this command and paste it in your Telegram bot chat:", cmd);
+            });
+        });
+    }
+
     // ========================================================
     // 4. FULL-BOUNDARY CLICKABLE TOGGLE FOR CHECKBOX GROUPS
     // ========================================================

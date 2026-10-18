@@ -164,7 +164,7 @@
                                     {% endif %}
                                 </div>
 
-                                <div style="display: flex; gap: 8px; align-items: center;">
+                                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                                     {% if current_user.telegram_chat_id %}
                                         <form method="POST" action="{{ url_for('main.disconnect_telegram') }}" style="display: inline;">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -176,17 +176,26 @@
                                         <a href="{{ telegram_connect_url }}" id="connect-telegram-btn" target="_blank" rel="noopener noreferrer" class="btn btn-telegram btn-sm">
                                             <span>✈️ Connect with Telegram</span>
                                         </a>
+                                        <button type="button" id="copy-tg-cmd-btn" class="btn btn-secondary btn-sm" data-cmd="/link {{ current_user.api_token }}" title="Copy command to link bot">
+                                            <span>📋 Copy /link Command</span>
+                                        </button>
                                     {% endif %}
                                 </div>
                             </div>
 
-                            <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 4px 0;">
+                            <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 6px 0;">
                                 {% if current_user.telegram_chat_id %}
                                     Connected to <strong>@{{ bot_username }}</strong> (Chat ID: <code>{{ current_user.telegram_chat_id }}</code>). Send <code>/streak</code> in Telegram anytime to check live stats!
                                 {% else %}
-                                    Click <strong>Connect with Telegram</strong> to open <strong>@{{ bot_username }}</strong> and tap <strong>START</strong>. Your ID links automatically in 1 second!
+                                    Tap <strong>Connect with Telegram</strong> and press <strong>START</strong>.
                                 {% endif %}
                             </p>
+
+                            {% if not current_user.telegram_chat_id %}
+                                <div style="font-size: 12px; color: #93c5fd; background: rgba(0, 136, 204, 0.08); border-left: 3px solid #60a5fa; padding: 8px 12px; border-radius: var(--radius-sm); margin: 8px 0;">
+                                    💡 <strong>Already chatting with @{{ bot_username }}?</strong> Telegram hides the START button for existing chats. Click <strong>Copy /link Command</strong> and paste <code>/link {{ current_user.api_token }}</code> directly into your Telegram chat to link instantly!
+                                </div>
+                            {% endif %}
 
                             <!-- Live Radar Status Detector Box -->
                             <div id="telegram-sync-radar" style="display: none; font-size: 12px; padding: 10px 14px; border-radius: var(--radius-sm); margin-top: 10px; background: rgba(0, 136, 204, 0.1); border: 1px solid rgba(0, 136, 204, 0.3); color: #93c5fd;">

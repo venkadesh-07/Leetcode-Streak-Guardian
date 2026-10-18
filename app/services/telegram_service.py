@@ -166,58 +166,77 @@ def process_telegram_update(item: dict) -> dict:
 
     first_name = msg.get("from", {}).get("first_name", "Coder")
 
-    # Command 1: /start <token> or /link <token>
+    # Extract token from various possible user formats:
+    # 1. /start <token> or /link <token> or /start=<token> or /link=<token>
+    # 2. Raw token
+    # 3. URL containing start=<token>
+    extracted_token = None
     if text.startswith("/start") or text.startswith("/link"):
-        parts = text.split()
-        if len(parts) >= 2:
-            token = parts[1].strip()
-            user = User.query.filter_by(api_token=token).first()
-            if user:
-                user.telegram_chat_id = chat_id
-                user.notify_telegram = True
-                db.session.commit()
+        m = re.search(r"^/(?:start|link)[=\s]+([A-Za-z0-9_-]{12,64})", text)
+        if m:
+            extracted_token = m.group(1).strip()
+    elif "start=" in text:
+        m = re.search(r"start=([A-Za-z0-9_-]{12,64})", text)
+        if m:
+            extracted_token = m.group(1).strip()
+    elif re.fullmatch(r"[A-Za-z0-9_-]{20,64}", text):
+        extracted_token = text
 
-                safe_name = user.leetcode_username or first_name or "Streak Guardian"
-                welcome_text = (
-                    f"🎉 <b>LeetCode Streak Guardian Connected!</b>\n\n"
-                    f"Welcome, <b>{safe_name}</b>!\n"
-                    f"Your Telegram account is now linked to your streak monitor.\n\n"
-                    f"⚡ <b>Commands you can use anytime:</b>\n"
-                    f"🔥 <code>/streak</code> - Check live LeetCode streak & today's progress\n"
-                    f"ℹ️ <code>/help</code> - View bot commands\n\n"
-                    f"We'll alert you right here whenever your streak is at risk before UTC midnight!"
-                )
-                send_telegram_message(chat_id, welcome_text)
-                return {"handled": True, "action": "linked", "user_id": user.id}
-            else:
-                send_telegram_message(
-                    chat_id,
-                    "⚠️ <b>Invalid or expired sync token.</b>\n\n"
-                    "Please visit your Streak Guardian Dashboard Settings and click <b>Connect with Telegram</b> to get a fresh link."
-                )
-                return {"handled": True, "action": "invalid_token"}
+    if extracted_token:
+        user = User.query.filter_by(api_token=extracted_token).first()
+        if user:
+            # Unlink previous accounts connected to this chat_id to keep mapping clean
+            old_users = User.query.filter_by(telegram_chat_id=chat_id).all()
+            for old_u in old_users:
+                if old_u.id != user.id:
+                    old_u.telegram_chat_id = None
+                    old_u.notify_telegram = False
+
+            user.telegram_chat_id = chat_id
+            user.notify_telegram = True
+            db.session.commit()
+
+            safe_name = user.leetcode_username or first_name or "Streak Guardian"
+            welcome_text = (
+                f"🎉 <b>LeetCode Streak Guardian Connected!</b>\n\n"
+                f"Welcome, <b>{safe_name}</b>!\n"
+                f"Your Telegram account is now linked to <code>{user.email}</code>.\n\n"
+                f"⚡ <b>Commands you can use anytime:</b>\n"
+                f"🔥 <code>/streak</code> - Check live LeetCode streak & today's progress\n"
+                f"ℹ️ <code>/help</code> - View bot commands\n\n"
+                f"We'll alert you right here whenever your streak is at risk before UTC midnight!"
+            )
+            send_telegram_message(chat_id, welcome_text)
+            return {"handled": True, "action": "linked", "user_id": user.id}
         else:
-            # Plain /start without token
-            user = User.query.filter_by(telegram_chat_id=chat_id).first()
-            if user:
-                send_telegram_message(
-                    chat_id,
-                    f"👋 Hello <b>{user.leetcode_username or first_name}</b>!\n\n"
-                    f"Your Telegram account is currently connected to <b>LeetCode Streak Guardian</b>.\n\n"
-                    f"Send <code>/streak</code> to view your live stats!"
-                )
-            else:
-                send_telegram_message(
-                    chat_id,
-                    f"👋 <b>Welcome to LeetCode Streak Guardian!</b>\n\n"
-                    f"To connect your account and receive autonomous streak alerts:\n"
-                    f"1️⃣ Open your <b>LeetCode Streak Guardian Dashboard</b>\n"
-                    f"2️⃣ Go to <b>Settings</b> ➔ Telegram Channel\n"
-                    f"3️⃣ Click <b>Connect with Telegram</b>\n"
-                    f"4️⃣ Press <b>START</b>!\n\n"
-                    f"Or send: <code>/link &lt;YOUR_SYNC_TOKEN&gt;</code>"
-                )
-            return {"handled": True, "action": "start_help"}
+            send_telegram_message(
+                chat_id,
+                "⚠️ <b>Invalid or expired sync token.</b>\n\n"
+                "Please visit your Streak Guardian Dashboard Settings and click <b>Connect with Telegram</b> to get a fresh link."
+            )
+            return {"handled": True, "action": "invalid_token"}
+
+    # Plain /start or /link without token
+    if text.startswith("/start") or text.startswith("/link"):
+        user = User.query.filter_by(telegram_chat_id=chat_id).first()
+        if user:
+            send_telegram_message(
+                chat_id,
+                f"👋 Hello <b>{user.leetcode_username or first_name}</b>!\n\n"
+                f"This chat is currently linked to <b>{user.email}</b>.\n\n"
+                f"🔥 Send <code>/streak</code> to view live stats.\n"
+                f"🔄 To switch to another account, send: <code>/link &lt;YOUR_NEW_SYNC_TOKEN&gt;</code>"
+            )
+        else:
+            send_telegram_message(
+                chat_id,
+                f"👋 <b>Welcome to LeetCode Streak Guardian!</b>\n\n"
+                f"To connect your account and receive autonomous streak alerts:\n"
+                f"1️⃣ Open your <b>LeetCode Streak Guardian Dashboard</b>\n"
+                f"2️⃣ Go to <b>Settings</b> ➔ Telegram Channel\n"
+                f"3️⃣ Click <b>Connect with Telegram</b> or send: <code>/link &lt;YOUR_SYNC_TOKEN&gt;</code>"
+            )
+        return {"handled": True, "action": "start_help"}
 
     # Command 2: /streak or /today or /status
     if text in ("/streak", "/today", "/status", "streak", "status"):
