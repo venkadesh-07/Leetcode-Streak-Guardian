@@ -123,6 +123,21 @@ def create_app(test_config=None):
 
     with app.app_context():
         db.create_all()
+        try:
+            from sqlalchemy import text
+            if "postgresql" in str(db.engine.url):
+                with db.engine.connect() as conn:
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS api_token VARCHAR(64);'))
+                    conn.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS ix_user_api_token ON "user" (api_token);'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_email BOOLEAN NOT NULL DEFAULT TRUE;'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_desktop BOOLEAN NOT NULL DEFAULT TRUE;'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_discord BOOLEAN NOT NULL DEFAULT FALSE;'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS discord_webhook_url VARCHAR(255);'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_telegram BOOLEAN NOT NULL DEFAULT FALSE;'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR(64);'))
+                    conn.commit()
+        except Exception:
+            pass
 
     @app.cli.command("check-reminders")
     def check_reminders_command():

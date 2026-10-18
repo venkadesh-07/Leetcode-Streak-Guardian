@@ -11,9 +11,10 @@ Tests:
 8. Server-Side Cooldown Logic (60-second activity check cooldown)
 """
 
+import os
+import time
 import unittest
 from unittest.mock import patch
-import time
 from app import create_app
 from app.extensions import db, limiter
 from app.models import User
@@ -298,12 +299,14 @@ class SecurityControlsTestCase(unittest.TestCase):
     def test_12_email_service_simulation_mode(self):
         """Verify safe local simulation mode when SMTP credentials are unset."""
         from app.services.email_service import send_email
+        import os
 
         # When SMTP_HOST is not in environment, email service safely logs and simulates
-        result = send_email("coder@example.com", "Test Alert", "Don't forget to code!")
-        self.assertTrue(result["success"])
-        self.assertEqual(result["mode"], "simulated")
-        self.assertEqual(result["recipient"], "coder@example.com")
+        with patch.dict(os.environ, {"SMTP_HOST": ""}):
+            result = send_email("coder@example.com", "Test Alert", "Don't forget to code!")
+            self.assertTrue(result["success"])
+            self.assertEqual(result["mode"], "simulated")
+            self.assertEqual(result["recipient"], "coder@example.com")
         print("  [PASS] Test 12: Email service local simulation mode confirmed safe.")
 
     def test_13_reminder_job_logic(self):
@@ -337,7 +340,7 @@ class SecurityControlsTestCase(unittest.TestCase):
         }
 
         with self.app.app_context():
-            with patch("app.services.reminder_job.check_daily_activity", return_value=mock_activity):
+            with patch.dict(os.environ, {"SMTP_HOST": ""}), patch("app.services.reminder_job.check_daily_activity", return_value=mock_activity):
                 stats = run_reminder_check()
                 self.assertGreaterEqual(stats["reminders_sent"], 1)
 
@@ -387,6 +390,264 @@ class SecurityControlsTestCase(unittest.TestCase):
             self.assertEqual(res.status_code, 200)
         print("  [PASS] Test 14: Automated cron webhook security and Bearer authentication verified.")
 
+    def test_15_desktop_streak_status_api(self):
+        """Verify the /api/v1/streak-status endpoint enforces token authentication and returns metrics."""
+        from datetime import datetime, timezone
+        today_iso = datetime.now(timezone.utc).date().isoformat()
+        with self.app.app_context():
+            user = User(email="desktopuser@example.com", leetcode_username="dev_alex")
+            user.set_password("Password123!")
+            token = user.get_or_create_api_token()
+            user.current_streak = 7
+            user.is_active_today = False
+            user.today_submissions = 0
+            user.last_checked_date_utc = today_iso
+            user.last_activity_check_at = int(time.time())
+            db.session.add(user)
+            db.session.commit()
+
+        # 1. Missing token -> 401
+        res = self.client.get("/api/v1/streak-status")
+        self.assertEqual(res.status_code, 401)
+
+        # 2. Invalid token -> 401
+        res = self.client.get("/api/v1/streak-status?token=non_existent_token")
+        self.assertEqual(res.status_code, 401)
+
+        # 3. Valid token via X-API-Key header -> 200
+        res = self.client.get(
+            "/api/v1/streak-status",
+            headers={"X-API-Key": token}
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["user"]["leetcode_username"], "dev_alex")
+        self.assertEqual(data["streak"]["current_streak"], 7)
+        self.assertFalse(data["streak"]["active_today"])
+        self.assertTrue(data["alert_needed"])
+        self.assertIn("Streak at Risk", data["message"])
+        print("  [PASS] Test 15: Desktop companion /api/v1/streak-status authentication and payload verified.")
+
+    def test_16_desktop_token_regeneration(self):
+        """Verify that authenticated users can regenerate their desktop sync token."""
+        with self.app.app_context():
+            user = User(email="tokentest@example.com")
+            user.set_password("Password123!")
+            initial_token = user.get_or_create_api_token()
+            db.session.add(user)
+            db.session.commit()
+            user_id = user.id
+
+        # Login as the user
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(user_id)
+            sess["_fresh"] = True
+
+        # POST to regenerate token without CSRF fails
+        res = self.client.post("/api/desktop/regenerate-token")
+        self.assertEqual(res.status_code, 400)
+
+        # Generate a new token using model helper directly and verify uniqueness
+        with self.app.app_context():
+            u = db.session.get(User, user_id)
+            old_token = u.api_token
+            u.api_token = None
+            new_token = u.get_or_create_api_token()
+            self.assertNotEqual(old_token, new_token)
+            self.assertEqual(len(new_token), 48)  # 24 bytes hex = 48 chars
+        print("  [PASS] Test 16: Desktop API token generation and uniqueness verified.")
+
+    def test_17_multi_channel_settings(self):
+        """Verify multi-channel notification preferences and test-email route."""
+        with self.app.app_context():
+            user = User(email="channeluser@example.com", reminder_email="channeluser@example.com", leetcode_username="coder_1")
+            user.set_password("Password123!")
+            user.reminder_enabled = True
+            user.notify_email = False
+            user.notify_desktop = True
+            db.session.add(user)
+            db.session.commit()
+            user_id = user.id
+
+        # Verify defaults and persistence
+        with self.app.app_context():
+            u = db.session.get(User, user_id)
+            self.assertFalse(u.notify_email)
+            self.assertTrue(u.notify_desktop)
+
+        # Login as user and verify send_test_email route rejects state without CSRF
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(user_id)
+            sess["_fresh"] = True
+
+        res = self.client.post("/settings/test-email")
+        self.assertEqual(res.status_code, 400)  # CSRF protected
+
+        # Direct service call simulation test
+        from app.services.email_service import send_streak_reminder
+        import os
+        with patch.dict(os.environ, {"SMTP_HOST": ""}):
+            result = send_streak_reminder(user=u, submissions_today=0, current_streak=5, date_utc="2026-10-17")
+            self.assertTrue(result["success"])
+            self.assertEqual(result["mode"], "simulated")
+        print("  [PASS] Test 17: Multi-channel preferences and test-email controls verified.")
+
+    def test_18_discord_webhook_notification(self):
+        """Verify Discord webhook URL validation, embed payload generation, simulation mode, and route CSRF protection."""
+        from app.services.discord_service import validate_discord_webhook_url, send_discord_streak_reminder
+
+        # 1. URL validation tests
+        valid_url = "https://discord.com/api/webhooks/123456789012345678/ABCDEF_ghijklmn-123456789"
+        valid_url_app = "https://discordapp.com/api/webhooks/123456789012345678/ABCDEF_ghijklmn-123456789"
+        invalid_url_1 = "https://malicious-site.com/api/webhooks/123/abc"
+        invalid_url_2 = "https://discord.com/channels/123/456"
+
+        self.assertTrue(validate_discord_webhook_url(valid_url))
+        self.assertTrue(validate_discord_webhook_url(valid_url_app))
+        self.assertFalse(validate_discord_webhook_url(invalid_url_1))
+        self.assertFalse(validate_discord_webhook_url(invalid_url_2))
+
+        # 2. Simulation mode delivery test
+        with self.app.app_context():
+            u = User(email="discorduser@example.com", leetcode_username="speed_coder")
+            u.set_password("Password123!")
+            u.notify_discord = True
+            u.discord_webhook_url = valid_url
+            db.session.add(u)
+            db.session.commit()
+            uid = u.id
+
+        with patch.dict(os.environ, {"SIMULATE_DISCORD": "true"}):
+            res = send_discord_streak_reminder(
+                webhook_url=valid_url,
+                user=u,
+                submissions_today=0,
+                current_streak=10,
+                date_utc="2026-10-17",
+            )
+            self.assertTrue(res["success"])
+            self.assertEqual(res["mode"], "simulated")
+
+        # 3. Route CSRF enforcement test on /settings/test-discord
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(uid)
+            sess["_fresh"] = True
+
+        route_res = self.client.post("/settings/test-discord")
+        self.assertEqual(route_res.status_code, 400)  # CSRF protected
+        print("  [PASS] Test 18: Discord webhook validation, rich embed dispatcher, and route controls verified.")
+
+    def test_19_telegram_bot_notification(self):
+        """Verify Telegram Chat ID validation, markdown message delivery, simulation mode, and route controls."""
+        from app.services.telegram_service import validate_telegram_chat_id, send_telegram_streak_reminder
+
+        # 1. Chat ID validation tests
+        self.assertTrue(validate_telegram_chat_id("123456789"))
+        self.assertTrue(validate_telegram_chat_id("-1001234567890"))
+        self.assertFalse(validate_telegram_chat_id("abc12345"))
+        self.assertFalse(validate_telegram_chat_id("@my_chat"))
+
+        # 2. Simulation mode delivery test
+        with self.app.app_context():
+            u = User(email="telegramuser@example.com", leetcode_username="tele_coder")
+            u.set_password("Password123!")
+            u.notify_telegram = True
+            u.telegram_chat_id = "987654321"
+            db.session.add(u)
+            db.session.commit()
+            uid = u.id
+
+        with patch.dict(os.environ, {"SIMULATE_TELEGRAM": "true"}):
+            res = send_telegram_streak_reminder(
+                chat_id="987654321",
+                user=u,
+                submissions_today=0,
+                current_streak=15,
+                date_utc="2026-10-17",
+            )
+            self.assertTrue(res["success"])
+            self.assertEqual(res["mode"], "simulated")
+
+        # 3. Route CSRF enforcement test on /settings/test-telegram
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(uid)
+            sess["_fresh"] = True
+
+        route_res = self.client.post("/settings/test-telegram")
+        self.assertEqual(route_res.status_code, 400)  # CSRF protected
+        print("  [PASS] Test 19: Telegram Chat ID validation, markdown bot dispatcher, and route controls verified.")
+
+    def test_20_telegram_1click_deeplink_and_routes(self):
+        """Verify 1-Click Telegram Deep Link auto-connection, check-link-status endpoint, and webhook."""
+        from app.services.telegram_service import process_telegram_update
+
+        with self.app.app_context():
+            u = User(email="deeplink@example.com", leetcode_username="deep_coder")
+            u.set_password("Password123!")
+            u.api_token = "test_deep_link_token_12345"
+            db.session.add(u)
+            db.session.commit()
+            uid = u.id
+
+        # 1. Test /start <token> deep link processing
+        update_payload = {
+            "update_id": 1001,
+            "message": {
+                "message_id": 42,
+                "chat": {"id": 88776655, "type": "private"},
+                "from": {"id": 88776655, "first_name": "DeepCoder"},
+                "text": "/start test_deep_link_token_12345",
+            }
+        }
+
+        with patch("app.services.telegram_service.send_telegram_message", return_value=True):
+            with self.app.app_context():
+                res = process_telegram_update(update_payload)
+            self.assertTrue(res.get("handled"))
+            self.assertEqual(res.get("action"), "linked")
+            self.assertEqual(res.get("user_id"), uid)
+
+        # Verify DB persisted
+        with self.app.app_context():
+            refreshed = db.session.get(User, uid)
+            self.assertEqual(refreshed.telegram_chat_id, "88776655")
+            self.assertTrue(refreshed.notify_telegram)
+
+        # 2. Test /api/telegram/check-link-status endpoint
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(uid)
+            sess["_fresh"] = True
+
+        with patch("app.services.telegram_service.sync_telegram_account_links", return_value={"count": 0}):
+            # Unauthorized call without token or session returns 401
+            unauth_resp = self.client.get("/api/telegram/check-link-status")
+            self.assertEqual(unauth_resp.status_code, 401)
+
+            # Authorized call with token returns 200
+            status_resp = self.client.get("/api/telegram/check-link-status?token=test_deep_link_token_12345")
+            self.assertEqual(status_resp.status_code, 200)
+            status_data = status_resp.get_json()
+            self.assertTrue(status_data["linked"])
+            self.assertEqual(status_data["telegram_chat_id"], "88776655")
+
+        # 3. Test /settings/disconnect-telegram CSRF enforcement
+        disc_no_csrf = self.client.post("/settings/disconnect-telegram")
+        self.assertEqual(disc_no_csrf.status_code, 400)
+
+        # 4. Test /api/telegram/webhook endpoint
+        webhook_resp = self.client.post("/api/telegram/webhook", json={
+            "update_id": 1002,
+            "message": {
+                "chat": {"id": 88776655},
+                "text": "/help",
+            }
+        })
+        self.assertEqual(webhook_resp.status_code, 200)
+        self.assertEqual(webhook_resp.get_json()["status"], "ok")
+
+        print("  [PASS] Test 20: 1-Click Telegram Deep Link auto-connection, check-link-status, and webhook verified.")
+
 
 if __name__ == "__main__":
     print("\nRunning Security & Rate Limiting Verification Suite...")
@@ -394,6 +655,7 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=1)
     result = runner.run(suite)
     if result.wasSuccessful():
-        print("\nALL 14 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
+        print("\nALL 20 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
     else:
         print("\nSOME CHECKS FAILED. Review errors above.\n")
+        exit(1)

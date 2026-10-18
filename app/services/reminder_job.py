@@ -31,7 +31,6 @@ def run_reminder_check():
     eligible_users = db.session.execute(
         db.select(User).filter(
             User.reminder_enabled == True,
-            User.reminder_email.isnot(None),
             User.leetcode_username.isnot(None),
         )
     ).scalars().all()
@@ -72,21 +71,61 @@ def run_reminder_check():
                 stats["interval_cooldown"] += 1
                 logger.info(f"{user_identifier}: Reminder already sent within last 4 hours. Skipping.")
             else:
-                # Dispatch reminder
-                send_res = send_streak_reminder(
-                    user=user,
-                    submissions_today=result["submissions_today"],
-                    current_streak=result["current_streak"],
-                    date_utc=today_utc,
-                )
+                dispatched_any = False
 
-                if send_res.get("success"):
-                    user.last_reminder_sent_date_utc = today_utc
-                    user.last_reminder_sent_at = now_ts
+                # 1. Dispatch Email if enabled
+                if getattr(user, "notify_email", True) and user.reminder_email:
+                    send_res = send_streak_reminder(
+                        user=user,
+                        submissions_today=result["submissions_today"],
+                        current_streak=result["current_streak"],
+                        date_utc=today_utc,
+                    )
+
+                    if send_res.get("success"):
+                        dispatched_any = True
+                        logger.info(f"{user_identifier}: Streak reminder email sent (mode: {send_res.get('mode')}).")
+                    else:
+                        stats["errors"].append(f"{user_identifier}: Failed to dispatch email reminder ({send_res.get('error')})")
+
+                # 2. Dispatch Discord if enabled
+                if getattr(user, "notify_discord", False) and user.discord_webhook_url:
+                    from app.services.discord_service import send_discord_streak_reminder
+                    discord_res = send_discord_streak_reminder(
+                        webhook_url=user.discord_webhook_url,
+                        user=user,
+                        submissions_today=result["submissions_today"],
+                        current_streak=result["current_streak"],
+                        date_utc=today_utc,
+                    )
+
+                    if discord_res.get("success"):
+                        dispatched_any = True
+                        logger.info(f"{user_identifier}: Streak reminder Discord alert sent (mode: {discord_res.get('mode')}).")
+                    else:
+                        stats["errors"].append(f"{user_identifier}: Failed to dispatch Discord alert ({discord_res.get('error')})")
+
+                # 3. Dispatch Telegram if enabled
+                if getattr(user, "notify_telegram", False) and user.telegram_chat_id:
+                    from app.services.telegram_service import send_telegram_streak_reminder
+                    tg_res = send_telegram_streak_reminder(
+                        chat_id=user.telegram_chat_id,
+                        user=user,
+                        submissions_today=result["submissions_today"],
+                        current_streak=result["current_streak"],
+                        date_utc=today_utc,
+                    )
+
+                    if tg_res.get("success"):
+                        dispatched_any = True
+                        logger.info(f"{user_identifier}: Streak reminder Telegram alert sent (mode: {tg_res.get('mode')}).")
+                    else:
+                        stats["errors"].append(f"{user_identifier}: Failed to dispatch Telegram alert ({tg_res.get('error')})")
+
+                user.last_reminder_sent_date_utc = today_utc
+                user.last_reminder_sent_at = now_ts
+                if dispatched_any:
                     stats["reminders_sent"] += 1
-                    logger.info(f"{user_identifier}: Streak reminder sent successfully (mode: {send_res.get('mode')}).")
-                else:
-                    stats["errors"].append(f"{user_identifier}: Failed to dispatch reminder ({send_res.get('error')})")
 
         try:
             db.session.commit()

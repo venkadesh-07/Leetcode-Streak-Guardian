@@ -114,7 +114,57 @@ class SettingsForm(FlaskForm):
     )
 
     reminder_enabled = BooleanField(
-        "Enable email reminders"
+        "Enable Autonomous Streak Guardian Protection"
+    )
+
+    notify_email = BooleanField(
+        "Send Email Reminders"
+    )
+
+    notify_desktop = BooleanField(
+        "Enable Windows Desktop App Reminders"
+    )
+
+    notify_discord = BooleanField(
+        "Enable Discord Channel Alerts"
+    )
+
+    discord_webhook_url = StringField(
+        "Discord Webhook URL",
+        validators=[
+            Optional(),
+            Length(max=255),
+        ],
+    )
+
+    notify_telegram = BooleanField(
+        "Enable Telegram Bot Private Alerts"
+    )
+
+    telegram_chat_id = StringField(
+        "Telegram Chat ID",
+        validators=[
+            Optional(),
+            Length(max=64),
+        ],
     )
 
     submit = SubmitField("Save settings")
+
+    def validate_discord_webhook_url(self, field):
+        url = (field.data or "").strip()
+        if url:
+            from app.services.discord_service import validate_discord_webhook_url
+            if not validate_discord_webhook_url(url):
+                raise ValidationError(
+                    "Invalid Discord Webhook URL. It must start with https://discord.com/api/webhooks/..."
+                )
+
+    def validate_telegram_chat_id(self, field):
+        cid = (field.data or "").strip()
+        if cid:
+            from app.services.telegram_service import validate_telegram_chat_id
+            if not validate_telegram_chat_id(cid):
+                raise ValidationError(
+                    "Invalid Telegram Chat ID. Chat ID must be numeric (e.g. 123456789)."
+                )

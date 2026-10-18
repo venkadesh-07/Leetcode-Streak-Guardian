@@ -40,8 +40,13 @@ def send_email(to_email, subject, body_text, body_html=None):
         os.environ.get("REMINDER_SENDER_EMAIL", "no-reply@streak-guardian.local")
     )
 
-    # If no SMTP host is configured, operate safely in simulation/audit mode.
-    if not smtp_host:
+    # Safe simulation guard: Never dispatch real emails during automated tests,
+    # when testing dummy domains (*@example.com), or when SMTP_HOST is unset.
+    from flask import current_app, has_app_context
+    is_testing = (has_app_context() and current_app.config.get("TESTING")) or os.environ.get("FLASK_ENV") == "testing"
+    is_dummy_domain = to_email.lower().endswith("@example.com") or to_email.lower().endswith(".test") or to_email.lower().endswith(".local")
+
+    if is_testing or is_dummy_domain or not smtp_host:
         logger.info(
             f"[EMAIL SIMULATION] Sent to: {to_email} | Subject: '{subject}'"
         )

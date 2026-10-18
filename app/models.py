@@ -58,9 +58,49 @@ class User(UserMixin, db.Model):
         nullable=False,
         default=False,
     )
+    notify_email = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=True,
+    )
+    notify_desktop = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=True,
+    )
+    notify_discord = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+    )
+    discord_webhook_url = db.Column(
+        db.String(255),
+        nullable=True,
+    )
+    notify_telegram = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+    )
+    telegram_chat_id = db.Column(
+        db.String(64),
+        nullable=True,
+    )
+    api_token = db.Column(
+        db.String(64),
+        unique=True,
+        nullable=True,
+        index=True,
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def get_or_create_api_token(self):
+        import secrets
+        if not self.api_token:
+            self.api_token = secrets.token_hex(24)
+        return self.api_token

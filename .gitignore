@@ -20,3 +20,8 @@ instance/
 .idea/
 .DS_Store
 Thumbs.db
+
+# ===== PyInstaller Desktop Builds =====
+desktop_companion/build/
+desktop_companion/dist/
+*.spec
