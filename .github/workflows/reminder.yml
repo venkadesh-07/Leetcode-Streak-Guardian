@@ -27,7 +27,7 @@ jobs:
 
       - name: Run Streak Guardian Reminder Job
         env:
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY || 'production-streak-guardian-default-key-32b' }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
           SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
@@ -37,6 +37,22 @@ jobs:
           REMINDER_SENDER_EMAIL: ${{ secrets.REMINDER_SENDER_EMAIL || 'venkadesh3948a@gmail.com' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
+          echo "======================================================="
           echo "Executing Streak Guardian Automated Reminder Check..."
+          echo "======================================================="
+
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ ERROR: DATABASE_URL secret is missing in GitHub Repository Secrets!"
+            echo "GitHub Actions needs DATABASE_URL to connect to your database."
+            echo "Go to Settings -> Secrets and variables -> Actions -> New repository secret"
+            echo "Name: DATABASE_URL"
+            exit 1
+          fi
+
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "⚠️ WARNING: TELEGRAM_BOT_TOKEN secret is not set in GitHub Secrets."
+            echo "Telegram alerts will run in simulation mode unless added."
+          fi
+
           python -m flask --app run:app check-reminders
 
