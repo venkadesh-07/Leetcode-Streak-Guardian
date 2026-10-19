@@ -304,6 +304,7 @@ def settings():
 
     # Auto-sync recent Telegram bot authorizations if user has an api_token
     token = current_user.get_or_create_api_token()
+    telegram_pin = current_user.get_or_create_telegram_pin()
     db.session.commit()
 
     from app.services.telegram_service import sync_telegram_account_links, get_telegram_bot_username
@@ -319,13 +320,21 @@ def settings():
 
     bot_username = get_telegram_bot_username()
     telegram_connect_url = f"https://t.me/{bot_username}?start={token}"
+    linked_accounts_count = (
+        User.query.filter_by(telegram_chat_id=current_user.telegram_chat_id).count()
+        if current_user.telegram_chat_id
+        else 0
+    )
 
     return render_template(
         "settings.html",
         form=form,
         telegram_connect_url=telegram_connect_url,
         bot_username=bot_username,
+        telegram_pin=telegram_pin,
+        linked_accounts_count=linked_accounts_count,
     )
+
 
 
 @main.route("/settings/test-email", methods=["POST"])
@@ -472,17 +481,39 @@ def check_telegram_link_status():
 
     bot_username = get_telegram_bot_username()
     is_linked = bool(user.telegram_chat_id and user.notify_telegram)
+    linked_count = (
+        User.query.filter_by(telegram_chat_id=user.telegram_chat_id).count()
+        if user.telegram_chat_id
+        else 0
+    )
+    pin = user.get_or_create_telegram_pin()
 
     return jsonify({
         "status": "success",
         "linked": is_linked,
         "telegram_chat_id": user.telegram_chat_id or "",
         "bot_username": bot_username,
+        "telegram_pin": pin,
+        "linked_accounts_count": linked_count,
         "message": "Telegram successfully connected!" if is_linked else "Waiting for bot activation in Telegram...",
     }), 200
 
 
+@main.route("/api/telegram/refresh-pin", methods=["POST"])
+@login_required
+def refresh_telegram_pin():
+    """Generate a fresh 6-digit pairing PIN for the current user."""
+    new_pin = current_user.get_or_create_telegram_pin(force_refresh=True)
+    return jsonify({
+        "status": "success",
+        "pin": new_pin,
+        "expires_in": 900,
+        "message": "Fresh 6-digit pairing PIN generated."
+    }), 200
+
+
 @main.route("/api/telegram/webhook", methods=["POST"])
+
 @csrf.exempt
 def telegram_webhook():
     """Real-time Telegram Webhook endpoint."""

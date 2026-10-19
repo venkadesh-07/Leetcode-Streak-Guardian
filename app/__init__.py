@@ -135,9 +135,13 @@ def create_app(test_config=None):
                     conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS discord_webhook_url VARCHAR(255);'))
                     conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_telegram BOOLEAN NOT NULL DEFAULT FALSE;'))
                     conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR(64);'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS telegram_pin VARCHAR(6);'))
+                    conn.execute(text('CREATE INDEX IF NOT EXISTS ix_user_telegram_pin ON "user" (telegram_pin);'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS telegram_pin_expires_at BIGINT;'))
                     conn.commit()
         except Exception:
             pass
+
 
     @app.cli.command("check-reminders")
     def check_reminders_command():

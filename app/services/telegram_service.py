@@ -165,8 +165,74 @@ def process_telegram_update(item: dict) -> dict:
         return {"handled": False, "reason": "empty_chat_or_text"}
 
     first_name = msg.get("from", {}).get("first_name", "Coder")
+    import html
+    import time
+    now_ts = int(time.time())
 
-    # Extract token from various possible user formats:
+    # Option B + Idea 1: Detect 6-digit numeric pairing PIN
+    # Matches patterns like: "842190", "842 190", "842-190", "/link 842190", "/pin 842190", "/start 842190"
+    pin_match = re.search(r"^(?:/(?:start|link|pin)[=\s]+)?\s*(\d{3})[\s-]?(\d{3})\s*$", text)
+    if pin_match:
+        pin_code = f"{pin_match.group(1)}{pin_match.group(2)}"
+        matched_user = User.query.filter_by(telegram_pin=pin_code).first()
+
+        if matched_user:
+            if matched_user.telegram_pin_expires_at and matched_user.telegram_pin_expires_at < now_ts:
+                send_telegram_message(
+                    chat_id,
+                    "⏱️ <b>This pairing PIN has expired (valid for 15 minutes).</b>\n\n"
+                    "Please refresh your Streak Guardian Settings page on the website to generate a fresh 6-digit PIN."
+                )
+                return {"handled": True, "action": "expired_pin"}
+
+            # Connect user to this Telegram Chat without unlinking friends (Option B: Shared Chat Support)
+            matched_user.telegram_chat_id = chat_id
+            matched_user.notify_telegram = True
+            matched_user.telegram_pin = None
+            matched_user.telegram_pin_expires_at = None
+            db.session.commit()
+
+            all_linked = User.query.filter_by(telegram_chat_id=chat_id).all()
+            safe_name = html.escape(str(matched_user.leetcode_username or first_name or "Streak Guardian"))
+
+            if len(all_linked) > 1:
+                accounts_list = []
+                for idx, acc in enumerate(all_linked, 1):
+                    uname = acc.leetcode_username or acc.email
+                    accounts_list.append(f"{idx}. <b>{html.escape(str(uname))}</b> (<code>{html.escape(str(acc.email))}</code>)")
+                accounts_str = "\n".join(accounts_list)
+
+                welcome_text = (
+                    f"🎉 <b>Account Connected! (Shared Squad Inbox)</b>\n\n"
+                    f"Welcome, <b>{safe_name}</b>!\n"
+                    f"Your Telegram is now linked to <code>{html.escape(str(matched_user.email))}</code>.\n\n"
+                    f"👥 <b>Active accounts in this chat ({len(all_linked)}):</b>\n"
+                    f"{accounts_str}\n\n"
+                    f"All linked accounts will receive daily streak reminders right here!\n"
+                    f"🔥 Send <code>/streak</code> anytime to check everyone's live progress."
+                )
+            else:
+                welcome_text = (
+                    f"🎉 <b>LeetCode Streak Guardian Connected!</b>\n\n"
+                    f"Welcome, <b>{safe_name}</b>!\n"
+                    f"Your Telegram account is now linked to <code>{html.escape(str(matched_user.email))}</code>.\n\n"
+                    f"⚡ <b>Commands you can use anytime:</b>\n"
+                    f"🔥 <code>/streak</code> - Check live LeetCode streak & today's progress\n"
+                    f"ℹ️ <code>/help</code> - View bot commands\n\n"
+                    f"💡 <i>Tip: Sharing this Telegram with friends? They can send their own 6-digit PIN in this chat to receive their alerts here too!</i>"
+                )
+
+            send_telegram_message(chat_id, welcome_text)
+            return {"handled": True, "action": "linked", "user_id": matched_user.id, "mode": "pin"}
+        else:
+            send_telegram_message(
+                chat_id,
+                "⚠️ <b>Invalid pairing PIN.</b>\n\n"
+                "Please verify the 6-digit PIN on your Streak Guardian Settings page and try again."
+            )
+            return {"handled": True, "action": "invalid_pin"}
+
+    # Extract token from various legacy or deep-link formats:
     # 1. /start <token> or /link <token> or /start=<token> or /link=<token>
     # 2. Raw token
     # 3. URL containing start=<token>
@@ -185,114 +251,178 @@ def process_telegram_update(item: dict) -> dict:
     if extracted_token:
         user = User.query.filter_by(api_token=extracted_token).first()
         if user:
-            # Unlink previous accounts connected to this chat_id to keep mapping clean
-            old_users = User.query.filter_by(telegram_chat_id=chat_id).all()
-            for old_u in old_users:
-                if old_u.id != user.id:
-                    old_u.telegram_chat_id = None
-                    old_u.notify_telegram = False
-
+            # Option B: Do NOT unlink existing accounts so multiple accounts can share 1 Telegram
             user.telegram_chat_id = chat_id
             user.notify_telegram = True
             db.session.commit()
 
-            safe_name = user.leetcode_username or first_name or "Streak Guardian"
-            welcome_text = (
-                f"🎉 <b>LeetCode Streak Guardian Connected!</b>\n\n"
-                f"Welcome, <b>{safe_name}</b>!\n"
-                f"Your Telegram account is now linked to <code>{user.email}</code>.\n\n"
-                f"⚡ <b>Commands you can use anytime:</b>\n"
-                f"🔥 <code>/streak</code> - Check live LeetCode streak & today's progress\n"
-                f"ℹ️ <code>/help</code> - View bot commands\n\n"
-                f"We'll alert you right here whenever your streak is at risk before UTC midnight!"
-            )
+            all_linked = User.query.filter_by(telegram_chat_id=chat_id).all()
+            safe_name = html.escape(str(user.leetcode_username or first_name or "Streak Guardian"))
+
+            if len(all_linked) > 1:
+                accounts_list = []
+                for idx, acc in enumerate(all_linked, 1):
+                    uname = acc.leetcode_username or acc.email
+                    accounts_list.append(f"{idx}. <b>{html.escape(str(uname))}</b> (<code>{html.escape(str(acc.email))}</code>)")
+                accounts_str = "\n".join(accounts_list)
+
+                welcome_text = (
+                    f"🎉 <b>Account Connected! (Shared Squad Inbox)</b>\n\n"
+                    f"Welcome, <b>{safe_name}</b>!\n"
+                    f"Your Telegram is now linked to <code>{html.escape(str(user.email))}</code>.\n\n"
+                    f"👥 <b>Active accounts in this chat ({len(all_linked)}):</b>\n"
+                    f"{accounts_str}\n\n"
+                    f"All linked accounts will receive daily streak reminders right here!\n"
+                    f"🔥 Send <code>/streak</code> anytime to check everyone's live progress."
+                )
+            else:
+                welcome_text = (
+                    f"🎉 <b>LeetCode Streak Guardian Connected!</b>\n\n"
+                    f"Welcome, <b>{safe_name}</b>!\n"
+                    f"Your Telegram account is now linked to <code>{html.escape(str(user.email))}</code>.\n\n"
+                    f"⚡ <b>Commands you can use anytime:</b>\n"
+                    f"🔥 <code>/streak</code> - Check live LeetCode streak & today's progress\n"
+                    f"ℹ️ <code>/help</code> - View bot commands\n\n"
+                    f"We'll alert you right here whenever your streak is at risk before UTC midnight!"
+                )
             send_telegram_message(chat_id, welcome_text)
-            return {"handled": True, "action": "linked", "user_id": user.id}
+            return {"handled": True, "action": "linked", "user_id": user.id, "mode": "token"}
         else:
             send_telegram_message(
                 chat_id,
                 "⚠️ <b>Invalid or expired sync token.</b>\n\n"
-                "Please visit your Streak Guardian Dashboard Settings and click <b>Connect with Telegram</b> to get a fresh link."
+                "Please visit your Streak Guardian Dashboard Settings and use the 6-digit PIN or fresh link."
             )
             return {"handled": True, "action": "invalid_token"}
 
-    # Plain /start or /link without token
+    # Plain /start or /link without token or pin
     if text.startswith("/start") or text.startswith("/link"):
-        user = User.query.filter_by(telegram_chat_id=chat_id).first()
-        if user:
-            send_telegram_message(
-                chat_id,
-                f"👋 Hello <b>{user.leetcode_username or first_name}</b>!\n\n"
-                f"This chat is currently linked to <b>{user.email}</b>.\n\n"
-                f"🔥 Send <code>/streak</code> to view live stats.\n"
-                f"🔄 To switch to another account, send: <code>/link &lt;YOUR_NEW_SYNC_TOKEN&gt;</code>"
-            )
+        linked_users = User.query.filter_by(telegram_chat_id=chat_id).all()
+        if linked_users:
+            if len(linked_users) == 1:
+                u = linked_users[0]
+                send_telegram_message(
+                    chat_id,
+                    f"👋 Hello <b>{html.escape(str(u.leetcode_username or first_name))}</b>!\n\n"
+                    f"This chat is currently linked to <b>{html.escape(str(u.email))}</b>.\n\n"
+                    f"🔥 Send <code>/streak</code> to view live stats.\n"
+                    f"➕ To connect additional accounts to this chat, simply send their 6-digit pairing PIN!"
+                )
+            else:
+                names = ", ".join([html.escape(str(u.leetcode_username or u.email)) for u in linked_users])
+                send_telegram_message(
+                    chat_id,
+                    f"👋 Hello Squad!\n\n"
+                    f"This chat is connected to <b>{len(linked_users)} accounts</b>: {names}.\n\n"
+                    f"🔥 Send <code>/streak</code> to view live stats for everyone.\n"
+                    f"➕ To link another account, simply send its 6-digit pairing PIN."
+                )
         else:
             send_telegram_message(
                 chat_id,
                 f"👋 <b>Welcome to LeetCode Streak Guardian!</b>\n\n"
                 f"To connect your account and receive autonomous streak alerts:\n"
-                f"1️⃣ Open your <b>LeetCode Streak Guardian Dashboard</b>\n"
-                f"2️⃣ Go to <b>Settings</b> ➔ Telegram Channel\n"
-                f"3️⃣ Click <b>Connect with Telegram</b> or send: <code>/link &lt;YOUR_SYNC_TOKEN&gt;</code>"
+                f"1️⃣ Open your <b>LeetCode Streak Guardian Settings</b>\n"
+                f"2️⃣ Look for your bold <b>6-digit Pairing PIN</b>\n"
+                f"3️⃣ Send the 6 digits right here in this chat (e.g. <code>842190</code>)!"
             )
         return {"handled": True, "action": "start_help"}
 
     # Command 2: /streak or /today or /status
     if text in ("/streak", "/today", "/status", "streak", "status"):
-        user = User.query.filter_by(telegram_chat_id=chat_id).first()
-        if not user:
+        users = User.query.filter_by(telegram_chat_id=chat_id).all()
+        if not users:
             send_telegram_message(
                 chat_id,
                 "⚠️ Your Telegram is not linked to any LeetCode Streak Guardian account yet.\n"
-                "Visit your website settings and click <b>Connect with Telegram</b> to link."
+                "Visit your website settings and send your 6-digit PIN here to link."
             )
             return {"handled": True, "action": "not_linked"}
 
-        if not user.leetcode_username:
-            send_telegram_message(
-                chat_id,
-                "⚠️ You have not set a LeetCode username yet in your website dashboard settings."
-            )
-            return {"handled": True, "action": "no_username"}
+        from app.services.leetcode_checker import check_daily_activity
 
-        try:
-            from app.services.leetcode_checker import check_daily_activity
-            result = check_daily_activity(user.leetcode_username)
-            user.current_streak = result.get("current_streak", 0)
-            user.today_submissions = result.get("submissions_today", 0)
-            user.is_active_today = result.get("active_today", False)
-            user.last_checked_date_utc = result.get("checked_date_utc")
+        if len(users) == 1:
+            user = users[0]
+            if not user.leetcode_username:
+                send_telegram_message(
+                    chat_id,
+                    "⚠️ You have not set a LeetCode username yet in your website dashboard settings."
+                )
+                return {"handled": True, "action": "no_username"}
+
+            try:
+                result = check_daily_activity(user.leetcode_username)
+                user.current_streak = result.get("current_streak", 0)
+                user.today_submissions = result.get("submissions_today", 0)
+                user.is_active_today = result.get("active_today", False)
+                user.last_checked_date_utc = result.get("checked_date_utc")
+                db.session.commit()
+
+                status_icon = "✅ Streak Protected!" if user.is_active_today else "⚠️ Streak At Risk!"
+                msg_reply = (
+                    f"🔥 <b>LeetCode Streak Status</b>\n\n"
+                    f"👤 <b>User:</b> <code>{html.escape(str(user.leetcode_username))}</code>\n"
+                    f"📊 <b>Current Streak:</b> <code>{user.current_streak} days</code>\n"
+                    f"⚡ <b>Today's Submissions:</b> <code>{user.today_submissions}</code>\n"
+                    f"🛡️ <b>Status:</b> <b>{status_icon}</b>\n"
+                    f"📅 <b>Date (UTC):</b> <code>{user.last_checked_date_utc}</code>\n\n"
+                    f"{'Keep up the great work!' if user.is_active_today else 'Solve at least 1 problem before UTC midnight to maintain your streak!'}"
+                )
+                send_telegram_message(chat_id, msg_reply)
+                return {"handled": True, "action": "streak_reported"}
+            except Exception as e:
+                send_telegram_message(chat_id, f"⚠️ Could not check LeetCode status right now: {e}")
+                return {"handled": True, "action": "streak_error"}
+
+        else:
+            # Multi-user Option B Squad report!
+            cards = []
+            for idx, u in enumerate(users, 1):
+                if not u.leetcode_username:
+                    cards.append(f"{idx}️⃣ <b>{html.escape(str(u.email))}</b>: <i>No LeetCode username configured</i>")
+                    continue
+                try:
+                    result = check_daily_activity(u.leetcode_username)
+                    u.current_streak = result.get("current_streak", 0)
+                    u.today_submissions = result.get("submissions_today", 0)
+                    u.is_active_today = result.get("active_today", False)
+                    u.last_checked_date_utc = result.get("checked_date_utc")
+                    status_icon = "✅ Protected" if u.is_active_today else "⚠️ At Risk!"
+                    cards.append(
+                        f"{idx}️⃣ <b>{html.escape(str(u.leetcode_username))}</b> (<code>{html.escape(str(u.email))}</code>)\n"
+                        f"   📊 Streak: <b>{u.current_streak} days</b> | Today: <b>{u.today_submissions}</b> solved ({status_icon})"
+                    )
+                except Exception:
+                    status_icon = "✅ Protected" if u.is_active_today else "⚠️ At Risk!"
+                    cards.append(
+                        f"{idx}️⃣ <b>{html.escape(str(u.leetcode_username))}</b>\n"
+                        f"   📊 Streak: <b>{u.current_streak or 0} days</b> | Today: <b>{u.today_submissions or 0}</b> solved ({status_icon})"
+                    )
+
             db.session.commit()
-
-            status_icon = "✅ Streak Protected!" if user.is_active_today else "⚠️ Streak At Risk!"
-            msg_reply = (
-                f"🔥 <b>LeetCode Streak Status</b>\n\n"
-                f"👤 <b>User:</b> <code>{user.leetcode_username}</code>\n"
-                f"📊 <b>Current Streak:</b> <code>{user.current_streak} days</code>\n"
-                f"⚡ <b>Today's Submissions:</b> <code>{user.today_submissions}</code>\n"
-                f"🛡️ <b>Status:</b> <b>{status_icon}</b>\n"
-                f"📅 <b>Date (UTC):</b> <code>{user.last_checked_date_utc}</code>\n\n"
-                f"{'Keep up the great work!' if user.is_active_today else 'Solve at least 1 problem before UTC midnight to maintain your streak!'}"
+            summary_text = (
+                f"🔥 <b>LeetCode Squad Streaks ({len(users)} Linked Accounts)</b>\n\n"
+                + "\n\n".join(cards)
+                + "\n\n🛡️ <i>Solve today's problem before 23:59 UTC to keep all streaks alive!</i>"
             )
-            send_telegram_message(chat_id, msg_reply)
-            return {"handled": True, "action": "streak_reported"}
-        except Exception as e:
-            send_telegram_message(chat_id, f"⚠️ Could not check LeetCode status right now: {e}")
-            return {"handled": True, "action": "streak_error"}
+            send_telegram_message(chat_id, summary_text)
+            return {"handled": True, "action": "squad_streak_reported", "count": len(users)}
 
     # Command 3: /help
     if text.startswith("/help"):
         send_telegram_message(
             chat_id,
             "🛡️ <b>LeetCode Streak Guardian Bot Commands:</b>\n\n"
-            "🔥 <code>/streak</code> - Check your live streak & today's submissions\n"
+            "🔢 <code>&lt;6-Digit PIN&gt;</code> - Link any website account directly\n"
+            "🔥 <code>/streak</code> - Check live streak & today's submissions (for all linked accounts)\n"
             "ℹ️ <code>/help</code> - Show this commands message\n\n"
-            "We automatically check your profile around the clock and alert you every 4 hours if today's problem hasn't been solved!"
+            "💡 <b>Shared Chat Support:</b> Multiple friends can send their 6-digit PIN in this chat so everyone gets notified together!\n"
+            "We automatically check your profile and alert you if today's problem hasn't been solved!"
         )
         return {"handled": True, "action": "help_sent"}
 
     return {"handled": False, "reason": "unrecognized_command"}
+
 
 
 def sync_telegram_account_links() -> dict:

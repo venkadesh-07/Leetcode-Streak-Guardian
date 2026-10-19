@@ -635,18 +635,127 @@ class SecurityControlsTestCase(unittest.TestCase):
         disc_no_csrf = self.client.post("/settings/disconnect-telegram")
         self.assertEqual(disc_no_csrf.status_code, 400)
 
-        # 4. Test /api/telegram/webhook endpoint
-        webhook_resp = self.client.post("/api/telegram/webhook", json={
-            "update_id": 1002,
-            "message": {
-                "chat": {"id": 88776655},
-                "text": "/help",
-            }
-        })
-        self.assertEqual(webhook_resp.status_code, 200)
-        self.assertEqual(webhook_resp.get_json()["status"], "ok")
+        with patch("app.services.telegram_service.send_telegram_message", return_value=True):
+            webhook_resp = self.client.post("/api/telegram/webhook", json={
+                "update_id": 1002,
+                "message": {
+                    "chat": {"id": 88776655},
+                    "text": "/help",
+                }
+            })
+            self.assertEqual(webhook_resp.status_code, 200)
+            self.assertEqual(webhook_resp.get_json()["status"], "ok")
 
         print("  [PASS] Test 20: 1-Click Telegram Deep Link auto-connection, check-link-status, and webhook verified.")
+
+    def test_21_telegram_6digit_pin_and_shared_squad_option_b(self):
+        """Verify 6-Digit PIN pairing, Option B multi-user shared Telegram chat, and squad /streak command."""
+        from app.services.telegram_service import process_telegram_update
+
+        with self.app.app_context():
+            # Create Friend 1
+            f1 = User(email="friend1@example.com", leetcode_username="coder_one")
+            f1.set_password("Password123!")
+            f1.current_streak = 50
+            f1.today_submissions = 1
+            db.session.add(f1)
+
+            # Create Friend 2
+            f2 = User(email="friend2@example.com", leetcode_username="coder_two")
+            f2.set_password("Password123!")
+            f2.current_streak = 25
+            f2.today_submissions = 0
+            db.session.add(f2)
+            db.session.commit()
+
+            f1_id = f1.id
+            f2_id = f2.id
+
+            pin1 = f1.get_or_create_telegram_pin()
+            pin2 = f2.get_or_create_telegram_pin()
+
+            self.assertEqual(len(pin1), 6)
+            self.assertTrue(pin1.isdigit())
+            self.assertEqual(len(pin2), 6)
+            self.assertTrue(pin2.isdigit())
+            self.assertNotEqual(pin1, pin2)
+
+        shared_chat_id = "99887766"
+
+        # 1. Friend 1 pairs via 6-digit PIN in the chat
+        update_p1 = {
+            "update_id": 2001,
+            "message": {
+                "message_id": 101,
+                "chat": {"id": int(shared_chat_id)},
+                "from": {"first_name": "Friend1"},
+                "text": pin1,
+            }
+        }
+
+        with patch("app.services.telegram_service.send_telegram_message", return_value=True):
+            with self.app.app_context():
+                res1 = process_telegram_update(update_p1)
+            self.assertTrue(res1.get("handled"))
+            self.assertEqual(res1.get("action"), "linked")
+            self.assertEqual(res1.get("mode"), "pin")
+            self.assertEqual(res1.get("user_id"), f1_id)
+
+        # 2. Friend 2 pairs via 6-digit PIN in the SAME chat (Option B Squad Support)
+        update_p2 = {
+            "update_id": 2002,
+            "message": {
+                "message_id": 102,
+                "chat": {"id": int(shared_chat_id)},
+                "from": {"first_name": "Friend2"},
+                "text": f"  {pin2}  ",
+            }
+        }
+
+        with patch("app.services.telegram_service.send_telegram_message", return_value=True):
+            with self.app.app_context():
+                res2 = process_telegram_update(update_p2)
+            self.assertTrue(res2.get("handled"))
+            self.assertEqual(res2.get("action"), "linked")
+            self.assertEqual(res2.get("mode"), "pin")
+            self.assertEqual(res2.get("user_id"), f2_id)
+
+        # 3. VERIFY OPTION B: BOTH friends remain linked to the shared chat ID! Neither was unlinked!
+        with self.app.app_context():
+            ref1 = db.session.get(User, f1_id)
+            ref2 = db.session.get(User, f2_id)
+            self.assertEqual(ref1.telegram_chat_id, shared_chat_id)
+            self.assertTrue(ref1.notify_telegram)
+            self.assertEqual(ref2.telegram_chat_id, shared_chat_id)
+            self.assertTrue(ref2.notify_telegram)
+
+            # 4. Multi-user squad /streak check
+            mock_status = {
+                "active_today": True,
+                "submissions_today": 2,
+                "current_streak": 51,
+                "checked_date_utc": "2026-10-19",
+            }
+            with patch("app.services.leetcode_checker.check_daily_activity", return_value=mock_status):
+                with patch("app.services.telegram_service.send_telegram_message", return_value=True):
+                    streak_update = {
+                        "update_id": 2003,
+                        "message": {
+                            "chat": {"id": int(shared_chat_id)},
+                            "text": "/streak",
+                        }
+                    }
+                    streak_res = process_telegram_update(streak_update)
+                    self.assertTrue(streak_res.get("handled"))
+                    self.assertEqual(streak_res.get("action"), "squad_streak_reported")
+                    self.assertEqual(streak_res.get("count"), 2)
+
+        # 5. Test /api/telegram/refresh-pin endpoint
+        disc_no_csrf = self.client.post("/api/telegram/refresh-pin")
+        self.assertEqual(disc_no_csrf.status_code, 400)  # CSRF protected
+
+        print("  [PASS] Test 21: 6-Digit PIN pairing, Option B multi-user squad linking, and /streak reporting verified.")
+
 
 
 if __name__ == "__main__":
@@ -655,7 +764,8 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=1)
     result = runner.run(suite)
     if result.wasSuccessful():
-        print("\nALL 20 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
+        print("\nALL 21 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
     else:
+
         print("\nSOME CHECKS FAILED. Review errors above.\n")
         exit(1)

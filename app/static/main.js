@@ -62,92 +62,160 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // ========================================================
-    // 3. 1-CLICK TELEGRAM DEEP LINK LIVE RADAR DETECTOR
+    // 3. TELEGRAM 6-DIGIT PIN PAIRING & RADAR STATUS DETECTOR
     // ========================================================
     const connectTgBtn = document.getElementById("connect-telegram-btn");
     const tgRadar = document.getElementById("telegram-sync-radar");
     const tgBadge = document.getElementById("telegram-status-badge");
     const tgChatIdInput = document.getElementById("telegram_chat_id");
     const tgCheckbox = document.getElementById("notify_telegram");
+    const copyPinBtn = document.getElementById("copy-pin-btn");
+    const refreshPinBtn = document.getElementById("refresh-pin-btn");
+    const copyTgCmdBtn = document.getElementById("copy-tg-cmd-btn");
+
+    let pollTimer = null;
+    let pollAttempts = 0;
+    const maxPollAttempts = 120; // Poll for 5 minutes (every 2.5s)
+
+    function checkTelegramStatus() {
+        fetch("/api/telegram/check-link-status", {
+            method: "GET",
+            headers: { "Accept": "application/json" }
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            pollAttempts++;
+            if (data.status === "success" && data.linked) {
+                if (pollTimer) clearInterval(pollTimer);
+                pollTimer = null;
+
+                // Update UI live!
+                if (tgBadge) {
+                    tgBadge.className = "badge";
+                    tgBadge.style.background = "rgba(16, 185, 129, 0.15)";
+                    tgBadge.style.color = "#34d399";
+                    tgBadge.textContent = "🟢 Linked";
+                }
+
+                if (tgRadar) {
+                    tgRadar.style.display = "block";
+                    tgRadar.style.background = "rgba(16, 185, 129, 0.12)";
+                    tgRadar.style.borderColor = "rgba(16, 185, 129, 0.35)";
+                    tgRadar.style.color = "#a7f3d0";
+                    tgRadar.innerHTML = '🎉 <strong>Telegram Connected!</strong> Chat ID: <code>' + (data.telegram_chat_id || '') + '</code> &bull; Streak alerts are now activated!';
+                }
+
+                if (tgChatIdInput) {
+                    tgChatIdInput.value = data.telegram_chat_id || "";
+                }
+
+                if (tgCheckbox) {
+                    tgCheckbox.checked = true;
+                }
+
+                if (connectTgBtn) {
+                    connectTgBtn.className = "btn btn-success btn-sm";
+                    connectTgBtn.innerHTML = "<span>✅ Connected!</span>";
+                }
+
+                // Reload page after 1.8s to fully refresh form and show squad status / test controls
+                setTimeout(function () {
+                    window.location.reload();
+                }, 1800);
+            } else if (pollAttempts >= maxPollAttempts) {
+                if (pollTimer) clearInterval(pollTimer);
+                pollTimer = null;
+                if (tgRadar) {
+                    tgRadar.innerHTML = '⏳ <em>Still listening for your PIN. Send the 6 digits in Telegram and refresh when ready.</em>';
+                }
+            }
+        })
+        .catch(function () {
+            // Ignore network glitch during poll
+        });
+    }
+
+    // Auto-listen if radar is present on screen (user is waiting to link)
+    if (tgRadar) {
+        pollTimer = setInterval(checkTelegramStatus, 2500);
+    }
 
     if (connectTgBtn) {
-        let pollTimer = null;
-        let pollAttempts = 0;
-        const maxPollAttempts = 45; // Poll for 90 seconds (every 2s)
-
-        function checkTelegramStatus() {
-            fetch("/api/telegram/check-link-status", {
-                method: "GET",
-                headers: { "Accept": "application/json" }
-            })
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-                pollAttempts++;
-                if (data.status === "success" && data.linked) {
-                    clearInterval(pollTimer);
-                    pollTimer = null;
-
-                    // Update UI live!
-                    if (tgBadge) {
-                        tgBadge.className = "badge";
-                        tgBadge.style.background = "rgba(16, 185, 129, 0.15)";
-                        tgBadge.style.color = "#34d399";
-                        tgBadge.textContent = "🟢 Linked";
-                    }
-
-                    if (tgRadar) {
-                        tgRadar.style.display = "block";
-                        tgRadar.style.background = "rgba(16, 185, 129, 0.12)";
-                        tgRadar.style.borderColor = "rgba(16, 185, 129, 0.35)";
-                        tgRadar.innerHTML = '🎉 <strong>Telegram Connected!</strong> Chat ID: <code>' + (data.telegram_chat_id || '') + '</code> &bull; Streak alerts are now activated!';
-                    }
-
-                    if (tgChatIdInput) {
-                        tgChatIdInput.value = data.telegram_chat_id || "";
-                    }
-
-                    if (tgCheckbox) {
-                        tgCheckbox.checked = true;
-                    }
-
-                    if (connectTgBtn) {
-                        connectTgBtn.className = "btn btn-success btn-sm";
-                        connectTgBtn.innerHTML = "<span>✅ Connected!</span>";
-                    }
-
-                    // Reload page after 1.8s to fully refresh form and show test buttons
-                    setTimeout(function () {
-                        window.location.reload();
-                    }, 1800);
-                } else if (pollAttempts >= maxPollAttempts) {
-                    clearInterval(pollTimer);
-                    pollTimer = null;
-                    if (tgRadar) {
-                        tgRadar.innerHTML = '⏳ <em>Still waiting for bot activation. Tap START in Telegram and refresh when ready.</em>';
-                    }
-                }
-            })
-            .catch(function () {
-                // Ignore network glitch during poll
-            });
-        }
-
         connectTgBtn.addEventListener("click", function () {
             if (tgRadar) {
                 tgRadar.style.display = "block";
-                tgRadar.innerHTML = '<span class="btn-spinner"></span> <strong>Opening Telegram...</strong> Tap <strong>START</strong> in your bot chat! (Checking automatically)';
+                tgRadar.innerHTML = '<span class="btn-spinner"></span> <strong>Opening Telegram...</strong> Send your 6-digit PIN in the chat! (Checking automatically)';
             }
-
-            // Start polling every 2 seconds
             pollAttempts = 0;
             if (pollTimer) clearInterval(pollTimer);
             pollTimer = setInterval(checkTelegramStatus, 2000);
-            // Run immediate check
             setTimeout(checkTelegramStatus, 1500);
         });
     }
 
-    const copyTgCmdBtn = document.getElementById("copy-tg-cmd-btn");
+    // 1-Click Copy PIN
+    if (copyPinBtn) {
+        copyPinBtn.addEventListener("click", function () {
+            const pinValEl = document.getElementById("telegram-pin-value");
+            const pin = copyPinBtn.getAttribute("data-pin") || (pinValEl ? pinValEl.textContent.trim() : "");
+            if (!pin) return;
+            navigator.clipboard.writeText(pin).then(function () {
+                const prevHtml = copyPinBtn.innerHTML;
+                copyPinBtn.classList.remove("btn-secondary");
+                copyPinBtn.classList.add("btn-success");
+                copyPinBtn.innerHTML = "<span>✓ PIN Copied!</span>";
+                setTimeout(function () {
+                    copyPinBtn.classList.remove("btn-success");
+                    copyPinBtn.classList.add("btn-secondary");
+                    copyPinBtn.innerHTML = prevHtml;
+                }, 2000);
+            }).catch(function () {
+                window.prompt("Your 6-digit Telegram Pairing PIN:", pin);
+            });
+        });
+    }
+
+    // Refresh PIN via AJAX
+    if (refreshPinBtn) {
+        refreshPinBtn.addEventListener("click", function () {
+            const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
+            const csrfToken = csrfTokenInput ? csrfTokenInput.value : "";
+            refreshPinBtn.disabled = true;
+            refreshPinBtn.innerHTML = '<span class="btn-spinner"></span> Generating...';
+
+            fetch("/api/telegram/refresh-pin", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken,
+                    "Accept": "application/json"
+                }
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                refreshPinBtn.disabled = false;
+                refreshPinBtn.innerHTML = "<span>🔄 Refresh PIN</span>";
+                if (data.status === "success" && data.pin) {
+                    const pinValEl = document.getElementById("telegram-pin-value");
+                    if (pinValEl) {
+                        pinValEl.textContent = data.pin;
+                        pinValEl.style.transition = "transform 0.2s ease";
+                        pinValEl.style.transform = "scale(1.15)";
+                        setTimeout(function () { pinValEl.style.transform = "scale(1)"; }, 250);
+                    }
+                    const pinHint = document.getElementById("pin-inline-hint");
+                    if (pinHint) pinHint.textContent = data.pin;
+                    if (copyPinBtn) copyPinBtn.setAttribute("data-pin", data.pin);
+                }
+            })
+            .catch(function () {
+                refreshPinBtn.disabled = false;
+                refreshPinBtn.innerHTML = "<span>🔄 Refresh PIN</span>";
+            });
+        });
+    }
+
+    // Copy /link command
     if (copyTgCmdBtn) {
         copyTgCmdBtn.addEventListener("click", function () {
             const cmd = copyTgCmdBtn.getAttribute("data-cmd");
@@ -167,6 +235,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
     }
+
 
     // ========================================================
     // 4. FULL-BOUNDARY CLICKABLE TOGGLE FOR CHECKBOX GROUPS
