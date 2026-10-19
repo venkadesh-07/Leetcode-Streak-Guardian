@@ -444,10 +444,6 @@ class SecurityControlsTestCase(unittest.TestCase):
             sess["_user_id"] = str(user_id)
             sess["_fresh"] = True
 
-        # POST to regenerate token without CSRF fails
-        res = self.client.post("/api/desktop/regenerate-token")
-        self.assertEqual(res.status_code, 400)
-
         # Generate a new token using model helper directly and verify uniqueness
         with self.app.app_context():
             u = db.session.get(User, user_id)
@@ -456,16 +452,17 @@ class SecurityControlsTestCase(unittest.TestCase):
             new_token = u.get_or_create_api_token()
             self.assertNotEqual(old_token, new_token)
             self.assertEqual(len(new_token), 48)  # 24 bytes hex = 48 chars
-        print("  [PASS] Test 16: Desktop API token generation and uniqueness verified.")
+        print("  [PASS] Test 16: API token generation and uniqueness verified.")
 
     def test_17_multi_channel_settings(self):
-        """Verify multi-channel notification preferences and test-email route."""
+        """Verify email and telegram notification preferences and test-email route."""
         with self.app.app_context():
             user = User(email="channeluser@example.com", reminder_email="channeluser@example.com", leetcode_username="coder_1")
             user.set_password("Password123!")
             user.reminder_enabled = True
             user.notify_email = False
-            user.notify_desktop = True
+            user.notify_telegram = True
+            user.telegram_chat_id = "987654321"
             db.session.add(user)
             db.session.commit()
             user_id = user.id
@@ -474,7 +471,8 @@ class SecurityControlsTestCase(unittest.TestCase):
         with self.app.app_context():
             u = db.session.get(User, user_id)
             self.assertFalse(u.notify_email)
-            self.assertTrue(u.notify_desktop)
+            self.assertTrue(u.notify_telegram)
+            self.assertEqual(u.telegram_chat_id, "987654321")
 
         # Login as user and verify send_test_email route rejects state without CSRF
         with self.client.session_transaction() as sess:
@@ -493,50 +491,22 @@ class SecurityControlsTestCase(unittest.TestCase):
             self.assertEqual(result["mode"], "simulated")
         print("  [PASS] Test 17: Multi-channel preferences and test-email controls verified.")
 
-    def test_18_discord_webhook_notification(self):
-        """Verify Discord webhook URL validation, embed payload generation, simulation mode, and route CSRF protection."""
-        from app.services.discord_service import validate_discord_webhook_url, send_discord_streak_reminder
+    def test_18_discord_and_desktop_cleanly_removed(self):
+        """Verify that Discord and Windows desktop options have been cleanly decoupled and removed."""
+        from app.forms import SettingsForm
+        with self.app.test_request_context():
+            form = SettingsForm()
+            self.assertFalse(hasattr(form, "notify_discord"))
+            self.assertFalse(hasattr(form, "discord_webhook_url"))
+            self.assertFalse(hasattr(form, "notify_desktop"))
 
-        # 1. URL validation tests
-        valid_url = "https://discord.com/api/webhooks/123456789012345678/ABCDEF_ghijklmn-123456789"
-        valid_url_app = "https://discordapp.com/api/webhooks/123456789012345678/ABCDEF_ghijklmn-123456789"
-        invalid_url_1 = "https://malicious-site.com/api/webhooks/123/abc"
-        invalid_url_2 = "https://discord.com/channels/123/456"
-
-        self.assertTrue(validate_discord_webhook_url(valid_url))
-        self.assertTrue(validate_discord_webhook_url(valid_url_app))
-        self.assertFalse(validate_discord_webhook_url(invalid_url_1))
-        self.assertFalse(validate_discord_webhook_url(invalid_url_2))
-
-        # 2. Simulation mode delivery test
-        with self.app.app_context():
-            u = User(email="discorduser@example.com", leetcode_username="speed_coder")
-            u.set_password("Password123!")
-            u.notify_discord = True
-            u.discord_webhook_url = valid_url
-            db.session.add(u)
-            db.session.commit()
-            uid = u.id
-
-        with patch.dict(os.environ, {"SIMULATE_DISCORD": "true"}):
-            res = send_discord_streak_reminder(
-                webhook_url=valid_url,
-                user=u,
-                submissions_today=0,
-                current_streak=10,
-                date_utc="2026-10-17",
-            )
-            self.assertTrue(res["success"])
-            self.assertEqual(res["mode"], "simulated")
-
-        # 3. Route CSRF enforcement test on /settings/test-discord
+        # Verify /settings/test-discord is removed and returns 404
         with self.client.session_transaction() as sess:
-            sess["_user_id"] = str(uid)
+            sess["_user_id"] = "1"
             sess["_fresh"] = True
-
-        route_res = self.client.post("/settings/test-discord")
-        self.assertEqual(route_res.status_code, 400)  # CSRF protected
-        print("  [PASS] Test 18: Discord webhook validation, rich embed dispatcher, and route controls verified.")
+        res = self.client.post("/settings/test-discord")
+        self.assertEqual(res.status_code, 404)
+        print("  [PASS] Test 18: Discord and Desktop options verified completely removed from forms and routes.")
 
     def test_19_telegram_bot_notification(self):
         """Verify Telegram Chat ID validation, markdown message delivery, simulation mode, and route controls."""

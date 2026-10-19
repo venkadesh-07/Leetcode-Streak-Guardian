@@ -88,22 +88,6 @@ def run_reminder_check():
                     else:
                         stats["errors"].append(f"{user_identifier}: Failed to dispatch email reminder ({send_res.get('error')})")
 
-                # 2. Dispatch Discord if enabled
-                if getattr(user, "notify_discord", False) and user.discord_webhook_url:
-                    from app.services.discord_service import send_discord_streak_reminder
-                    discord_res = send_discord_streak_reminder(
-                        webhook_url=user.discord_webhook_url,
-                        user=user,
-                        submissions_today=result["submissions_today"],
-                        current_streak=result["current_streak"],
-                        date_utc=today_utc,
-                    )
-
-                    if discord_res.get("success"):
-                        dispatched_any = True
-                        logger.info(f"{user_identifier}: Streak reminder Discord alert sent (mode: {discord_res.get('mode')}).")
-                    else:
-                        stats["errors"].append(f"{user_identifier}: Failed to dispatch Discord alert ({discord_res.get('error')})")
 
                 # 3. Dispatch Telegram if enabled
                 if getattr(user, "notify_telegram", False) and user.telegram_chat_id:

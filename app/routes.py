@@ -265,20 +265,6 @@ def settings():
             form.notify_email.data
         )
 
-        current_user.notify_desktop = bool(
-            form.notify_desktop.data
-        )
-
-        current_user.notify_discord = bool(
-            form.notify_discord.data
-        )
-
-        current_user.discord_webhook_url = (
-            form.discord_webhook_url.data.strip()
-            if form.discord_webhook_url.data
-            else None
-        )
-
         current_user.notify_telegram = bool(
             form.notify_telegram.data
         )
@@ -372,39 +358,6 @@ def send_test_email():
 
     return redirect(url_for("main.settings"))
 
-
-@main.route("/settings/test-discord", methods=["POST"])
-@login_required
-@limiter.limit("5 per minute")
-def send_test_discord():
-    """Send an instant sample streak reminder embed to the user's configured Discord webhook."""
-    webhook_url = current_user.discord_webhook_url
-    if not webhook_url:
-        flash("No Discord Webhook URL configured to send a test alert.", "error")
-        return redirect(url_for("main.settings"))
-
-    from app.services.discord_service import send_discord_streak_reminder
-    today_utc = datetime.now(timezone.utc).date().isoformat()
-    res = send_discord_streak_reminder(
-        webhook_url=webhook_url,
-        user=current_user,
-        submissions_today=current_user.today_submissions or 0,
-        current_streak=current_user.current_streak or 0,
-        date_utc=today_utc,
-    )
-
-    if res.get("success"):
-        flash(
-            f"Test Discord alert dispatched successfully to your webhook channel! (mode: {res.get('mode')})",
-            "success",
-        )
-    else:
-        flash(
-            f"Failed to dispatch Discord alert: {res.get('error')}",
-            "error",
-        )
-
-    return redirect(url_for("main.settings"))
 
 
 @main.route("/settings/test-telegram", methods=["POST"])
@@ -553,38 +506,6 @@ def trigger_cron_reminders():
     stats = run_reminder_check()
     return jsonify({"status": "success", "results": stats}), 200
 
-
-@main.route("/api/desktop/regenerate-token", methods=["POST"])
-@login_required
-def regenerate_desktop_token():
-    """Regenerates the user's personal desktop sync API token."""
-    current_user.api_token = secrets.token_hex(24)
-    try:
-        db.session.commit()
-        flash("New desktop sync token generated successfully.", "success")
-    except SQLAlchemyError:
-        db.session.rollback()
-        flash("Failed to generate a new sync token. Please try again.", "error")
-
-    return redirect(url_for("main.dashboard"))
-
-
-@main.route("/download/desktop-companion")
-@login_required
-def download_desktop_companion():
-    """Provides direct download of the compiled Windows Desktop Companion .exe."""
-    dist_dir = os.path.abspath(os.path.join(current_app.root_path, "..", "desktop_companion", "dist"))
-    exe_file = "LeetCodeStreakGuardian.exe"
-    if not os.path.exists(os.path.join(dist_dir, exe_file)):
-        flash("Desktop executable build is not currently available for download.", "warning")
-        return redirect(url_for("main.dashboard"))
-
-    return send_from_directory(
-        dist_dir,
-        exe_file,
-        as_attachment=True,
-        download_name="LeetCodeStreakGuardian.exe",
-    )
 
 
 @main.route("/api/v1/streak-status", methods=["GET"])

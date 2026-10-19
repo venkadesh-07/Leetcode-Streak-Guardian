@@ -3,62 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LeetCode Streak Guardian — Autonomous Daily Coding Protection</title>
+    <title>LeetCode Streak Guardian — 24/7 Autonomous Streak Protection</title>
+    <meta name="description" content="Never break your LeetCode coding streak. Automated background checks every 4 hours with instant Telegram Bot and Email alerts before UTC midnight.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <main class="container">
-        <header style="text-align: center; margin-bottom: 32px;">
-            <div class="brand-badge">
-                <span class="brand-dot"></span> 24/7 Autonomous Streak Protection
+    <!-- Top Navigation Bar -->
+    <nav class="top-nav">
+        <div class="nav-container">
+            <a href="{{ url_for('main.home') }}" class="brand-logo">
+                <span class="logo-flame">🔥</span>
+                <span class="logo-text">Streak<strong>Guardian</strong></span>
+            </a>
+            <div class="nav-links">
+                <a href="{{ url_for('main.login') }}" class="nav-link">Log In</a>
+                <a href="{{ url_for('main.register') }}" class="btn btn-primary btn-sm">Get Started Free &rarr;</a>
             </div>
-            <h1>LeetCode Streak Guardian</h1>
-            <p class="subtitle">Never lose your hard-earned coding streak again. Automated checks every 4 hours.</p>
-        </header>
+        </div>
+    </nav>
 
-        <section class="card streak-card" style="text-align: center;">
-            <h2>🔥 Protect Your Daily Habit</h2>
-            <p style="color: var(--text-secondary); max-width: 540px; margin: 0 auto 24px;">
-                Streak Guardian monitors your public LeetCode profile around the clock and sends real-time email reminders to your phone before the daily UTC reset.
+    <main class="container hero-container">
+        <!-- Hero Header -->
+        <header class="hero-header">
+            <div class="brand-badge hero-badge">
+                <span class="brand-dot"></span> 24/7 Autonomous Cloud Protection
+            </div>
+            <h1 class="hero-title">
+                Never Break Your <br>
+                <span class="gradient-text">LeetCode Streak</span> Again.
+            </h1>
+            <p class="subtitle hero-subtitle">
+                Automated background scans verify your daily problem status every 4 hours. 
+                Instant alerts dispatched straight to your <strong>Telegram</strong> & <strong>Email</strong> before the UTC reset.
             </p>
-
-            <div class="card-footer" style="justify-content: center; margin-top: 0;">
-                <a href="{{ url_for('main.register') }}" class="btn btn-primary" style="padding: 14px 28px; font-size: 15px;">
+            <div class="hero-cta-group">
+                <a href="{{ url_for('main.register') }}" class="btn btn-primary btn-lg">
                     ⚡ Start Protecting My Streak (Free)
                 </a>
-                <a href="{{ url_for('main.login') }}" class="btn btn-secondary" style="padding: 14px 24px; font-size: 15px;">
-                    Log In
+                <a href="{{ url_for('main.login') }}" class="btn btn-secondary btn-lg">
+                    Access Dashboard
                 </a>
+            </div>
+        </header>
+
+        <!-- Live Interactive Simulation / Showcase Card -->
+        <section class="card showcase-card">
+            <div class="showcase-header">
+                <div class="showcase-user">
+                    <div class="avatar-ring">👨‍💻</div>
+                    <div>
+                        <div class="showcase-username">Daily Coding Radar</div>
+                        <div class="showcase-sub">Real-Time LeetCode GraphQL Activity Monitor</div>
+                    </div>
+                </div>
+                <div class="live-status-pill">
+                    <span class="pulse-dot"></span> LIVE MONITORING
+                </div>
+            </div>
+
+            <!-- Simulated Stats Row -->
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <span class="metric-number">230+</span>
+                    <span class="metric-label">🔥 Day Active Streak</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-number">4 hrs</span>
+                    <span class="metric-label">⏱️ Autonomous Checks</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-number">0s</span>
+                    <span class="metric-label">🛑 Auto-Stop On Solve</span>
+                </div>
+            </div>
+
+            <!-- Multi-Channel Preview Box -->
+            <div class="channels-preview-grid">
+                <div class="channel-preview-card channel-card-tg">
+                    <div class="preview-card-header">
+                        <span class="channel-icon">🤖</span>
+                        <strong>Telegram Bot Alerts</strong>
+                        <span class="badge badge-cyan">Instant Delivery</span>
+                    </div>
+                    <p class="preview-text">
+                        Connect in 5 seconds with a 6-digit PIN. Chat 1-on-1 or add friends to a shared squad inbox. Send <code>/streak</code> anytime!
+                    </p>
+                </div>
+                <div class="channel-preview-card channel-card-mail">
+                    <div class="preview-card-header">
+                        <span class="channel-icon">✉️</span>
+                        <strong>Encrypted Email Alerts</strong>
+                        <span class="badge badge-success">Fail-Closed TLS</span>
+                    </div>
+                    <p class="preview-text">
+                        Direct to your inbox with exact hours remaining before the UTC day ends. Automatically silences the instant you solve 1 problem.
+                    </p>
+                </div>
             </div>
         </section>
 
         <!-- Feature Grid -->
-        <div class="features-grid">
-            <div class="feature-box">
-                <span class="feature-icon">🛡️</span>
-                <h3 class="feature-title">4-Hour Smart Checks</h3>
-                <p class="feature-desc">Autonomous cloud reminders every 4 hours that automatically stop the moment you solve a problem.</p>
+        <section class="features-section">
+            <div class="section-badge">ENGINEERED FOR CONSISTENCY</div>
+            <h2 class="section-heading">Why Top Developers Rely on Streak Guardian</h2>
+
+            <div class="features-grid">
+                <div class="feature-box">
+                    <div class="feature-icon-wrapper">🛡️</div>
+                    <h3 class="feature-title">Smart 4-Hour Checks</h3>
+                    <p class="feature-desc">Autonomous background cron monitors your profile every 4 hours. You only get alerted when your streak is genuinely at risk.</p>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-icon-wrapper">🔒</div>
+                    <h3 class="feature-title">100% Zero-Password Safety</h3>
+                    <p class="feature-desc">Zero passwords or session cookies stored. We only query LeetCode's public GraphQL statistics. Fully secure & risk-free.</p>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-icon-wrapper">👥</div>
+                    <h3 class="feature-title">Squad Chat Sharing</h3>
+                    <p class="feature-desc">Roommates or coding squads can link multiple accounts to a single Telegram group chat so everyone stays accountable.</p>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-icon-wrapper">⚡</div>
+                    <h3 class="feature-title">Instant PIN Pairing</h3>
+                    <p class="feature-desc">No complicated bot configuration. Enter a 6-digit PIN in Telegram and you're paired in under 5 seconds.</p>
+                </div>
             </div>
-            <div class="feature-box">
-                <span class="feature-icon">🔒</span>
-                <h3 class="feature-title">Zero Credentials Needed</h3>
-                <p class="feature-desc">Zero passwords or session cookies stored. We only query LeetCode's public GraphQL statistics.</p>
+        </section>
+
+        <!-- Bottom Call to Action Card -->
+        <section class="card cta-card">
+            <h2>Ready to Never Drop a Streak?</h2>
+            <p style="color: var(--text-secondary); max-width: 520px; margin: 8px auto 24px;">
+                Join developers keeping their coding momentum alive every single day. Takes 30 seconds to set up.
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                <a href="{{ url_for('main.register') }}" class="btn btn-primary btn-lg">
+                    ⚡ Protect My Streak Now (Free)
+                </a>
             </div>
-            <div class="feature-box">
-                <span class="feature-icon">📬</span>
-                <h3 class="feature-title">Reliable Email Alerts</h3>
-                <p class="feature-desc">Delivered via TLS straight to your inbox with exact time remaining before the UTC day ends.</p>
-            </div>
-        </div>
+        </section>
 
         <footer>
             <div class="footer-badge">
-                <span>🛡️</span> LeetCode Streak Guardian &bull; 100% Autonomous &bull; Free Forever
+                <span>🛡️</span> LeetCode Streak Guardian &bull; 100% Free Forever
             </div>
-            <p style="margin-top: 6px;">Stay consistent. Keep coding!</p>
+            <p style="margin-top: 8px; color: var(--text-muted); font-size: 13px;">
+                Stay consistent. Keep coding! Built for programmers worldwide.
+            </p>
         </footer>
     </main>
 

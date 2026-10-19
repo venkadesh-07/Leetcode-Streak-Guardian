@@ -121,22 +121,6 @@ class SettingsForm(FlaskForm):
         "Send Email Reminders"
     )
 
-    notify_desktop = BooleanField(
-        "Enable Windows Desktop App Reminders"
-    )
-
-    notify_discord = BooleanField(
-        "Enable Discord Channel Alerts"
-    )
-
-    discord_webhook_url = StringField(
-        "Discord Webhook URL",
-        validators=[
-            Optional(),
-            Length(max=255),
-        ],
-    )
-
     notify_telegram = BooleanField(
         "Enable Telegram Bot Private Alerts"
     )
@@ -150,15 +134,6 @@ class SettingsForm(FlaskForm):
     )
 
     submit = SubmitField("Save settings")
-
-    def validate_discord_webhook_url(self, field):
-        url = (field.data or "").strip()
-        if url:
-            from app.services.discord_service import validate_discord_webhook_url
-            if not validate_discord_webhook_url(url):
-                raise ValidationError(
-                    "Invalid Discord Webhook URL. It must start with https://discord.com/api/webhooks/..."
-                )
 
     def validate_telegram_chat_id(self, field):
         cid = (field.data or "").strip()

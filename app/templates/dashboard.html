@@ -93,18 +93,12 @@
                     <span class="info-value" style="display: flex; gap: 8px; flex-wrap: wrap;">
                         {% if user.reminder_enabled %}
                             {% if user.notify_email and user.reminder_email %}
-                                <span style="color: var(--success-text); font-size: 13px;">● ✉️ Email</span>
-                            {% endif %}
-                            {% if user.notify_desktop %}
-                                <span style="color: var(--success-text); font-size: 13px;">● 🖥️ Desktop</span>
-                            {% endif %}
-                            {% if user.notify_discord and user.discord_webhook_url %}
-                                <span style="color: var(--success-text); font-size: 13px;">● 💬 Discord</span>
+                                <span class="badge badge-success" style="font-size: 12px; padding: 4px 10px;">✉️ Email Alerts</span>
                             {% endif %}
                             {% if user.notify_telegram and user.telegram_chat_id %}
-                                <span style="color: var(--success-text); font-size: 13px;">● 🤖 Telegram</span>
+                                <span class="badge" style="background: rgba(0, 136, 204, 0.15); color: #38bdf8; font-size: 12px; padding: 4px 10px; border-radius: 9999px;">🤖 Telegram Bot</span>
                             {% endif %}
-                            {% if not (user.notify_email and user.reminder_email) and not user.notify_desktop and not (user.notify_discord and user.discord_webhook_url) and not (user.notify_telegram and user.telegram_chat_id) %}
+                            {% if not (user.notify_email and user.reminder_email) and not (user.notify_telegram and user.telegram_chat_id) %}
                                 <span style="color: var(--warning-text); font-size: 13px;">⚠️ No channels configured</span>
                             {% endif %}
                         {% else %}
@@ -113,52 +107,57 @@
                     </span>
                 </div>
             </div>
-            <div class="card-footer">
-                <a href="{{ url_for('main.settings') }}" class="btn btn-secondary">Manage Settings</a>
+            <div class="card-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <a href="{{ url_for('main.settings') }}" class="btn btn-secondary">
+                    ⚙️ Configure Channels & Settings
+                </a>
+                <a href="https://leetcode.com/problemset/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                    ⚡ Solve Today's Problem on LeetCode &rarr;
+                </a>
             </div>
         </section>
 
-        <!-- Desktop Startup Guardian Card -->
-        <section class="card desktop-companion-card">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+        <!-- Telegram & Email Live Protection Status Card -->
+        <section class="card" style="background: linear-gradient(180deg, rgba(17, 24, 39, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
                 <div>
-                    <h2>🖥️ Windows Desktop Startup Guardian</h2>
-                    <p class="subtitle" style="margin-bottom: 0;">Receive an instant native Windows notification banner whenever your PC turns on if your streak is at risk.</p>
+                    <h2>🤖 Telegram & Email Instant Guard</h2>
+                    <p class="subtitle" style="margin-bottom: 0;">24/7 background checks monitor your profile and dispatch alerts directly to your inbox and phone.</p>
                 </div>
-                <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--brand-amber); padding: 4px 12px; border-radius: var(--radius-full); font-size: 12px; font-weight: 700; border: 1px solid rgba(245, 158, 11, 0.3);">Native .EXE Companion</span>
+                {% if user.notify_telegram and user.telegram_chat_id %}
+                    <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 12px; padding: 4px 12px; border-radius: 9999px;">🟢 Telegram Active</span>
+                {% else %}
+                    <a href="{{ url_for('main.settings') }}" class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 12px; padding: 4px 12px; border-radius: 9999px; text-decoration: none;">⚡ Connect Telegram</a>
+                {% endif %}
             </div>
 
-            <div class="status-box status-idle" style="margin-bottom: 20px;">
-                <p class="status-title">🔑 Your Personal Sync Token</p>
-                <p style="font-size: 13px; margin-bottom: 10px;">Paste this sync token into the desktop companion app to connect your account.</p>
-                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                    <input type="text" id="desktop-sync-token" readonly value="{{ user.api_token or '' }}" style="flex: 1; min-width: 240px; font-family: var(--font-mono); font-size: 13px; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--brand-amber-light);" />
-                    <button type="button" id="copy-token-btn" class="btn btn-primary" style="padding: 10px 16px;">Copy Token</button>
-                    <form id="regenerate-token-form" method="POST" action="{{ url_for('main.regenerate_desktop_token') }}" style="display: inline;">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-secondary" style="padding: 10px 14px;">Regenerate</button>
-                    </form>
+            <div class="features-grid" style="margin: 0 0 16px 0;">
+                <div class="feature-box" style="padding: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 20px;">✉️</span>
+                        <strong style="color: var(--text-primary); font-size: 14px;">Daily Email Alerts</strong>
+                    </div>
+                    <p class="feature-desc" style="font-size: 12px; margin-bottom: 0;">
+                        {% if user.notify_email and user.reminder_email %}
+                            Active: <code>{{ user.reminder_email }}</code>
+                        {% else %}
+                            Not configured. Add your email in Settings.
+                        {% endif %}
+                    </p>
                 </div>
-            </div>
-
-            <div class="info-grid">
-                <div class="info-row">
-                    <span class="info-label">Companion Location</span>
-                    <span class="info-value"><code>desktop_companion/app.py</code> or compiled <code>.exe</code></span>
+                <div class="feature-box" style="padding: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 20px;">🤖</span>
+                        <strong style="color: #38bdf8; font-size: 14px;">Telegram Bot</strong>
+                    </div>
+                    <p class="feature-desc" style="font-size: 12px; margin-bottom: 0;">
+                        {% if user.notify_telegram and user.telegram_chat_id %}
+                            Linked (Chat ID: <code>{{ user.telegram_chat_id }}</code>). Send <code>/streak</code> anytime!
+                        {% else %}
+                            Pair via 6-digit PIN on the Settings page.
+                        {% endif %}
+                    </p>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">Windows Boot Trigger</span>
-                    <span class="info-value">Runs automatically at PC logon via Windows Startup</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Interactive Alerts</span>
-                    <span class="info-value">Clicking notification banner opens LeetCode challenge directly</span>
-                </div>
-            <div class="card-footer" style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <a href="{{ url_for('main.download_desktop_companion') }}" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
-                    ⬇️ Download Desktop App (.exe)
-                </a>
-                <span style="font-size: 12px; color: var(--text-muted);">Windows 10/11 &bull; Standalone Executable</span>
             </div>
         </section>
 

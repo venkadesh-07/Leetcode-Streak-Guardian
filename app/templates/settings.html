@@ -89,55 +89,7 @@
                         </div>
                     </div>
 
-                    <!-- Channel 2: Desktop App -->
-                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
-                        <div class="checkbox-group" style="margin-bottom: 6px;">
-                            <div class="checkbox-group-content">
-                                {{ form.notify_desktop() }}
-                                <label for="notify_desktop" style="font-weight: 600; color: var(--text-primary);">
-                                    🖥️ Windows Desktop Startup Alerts (.EXE)
-                                </label>
-                            </div>
-                            <div class="toggle-switch-track">
-                                <div class="toggle-switch-thumb"></div>
-                            </div>
-                        </div>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 0;">
-                            Pops up a native Windows notification banner whenever your PC turns on. 
-                            Configure via your <a href="{{ url_for('main.dashboard') }}" style="color: var(--brand-amber); text-decoration: underline;">Dashboard Sync Token</a>.
-                        </p>
-                    </div>
-
-                    <!-- Channel 3: Discord Webhook -->
-                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
-                        <div class="checkbox-group" style="margin-bottom: 12px;">
-                            <div class="checkbox-group-content">
-                                {{ form.notify_discord() }}
-                                <label for="notify_discord" style="font-weight: 600; color: var(--text-primary);">
-                                    💬 Discord Channel Alerts (Webhook)
-                                </label>
-                            </div>
-                            <div class="toggle-switch-track">
-                                <div class="toggle-switch-thumb"></div>
-                            </div>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            {{ form.discord_webhook_url.label }}
-                            {{ form.discord_webhook_url(
-                                autocomplete="off",
-                                maxlength="255",
-                                placeholder="https://discord.com/api/webhooks/123.../abc..."
-                            ) }}
-                            <small class="form-help">
-                                In your Discord channel: <strong>Edit Channel ➔ Integrations ➔ Webhooks ➔ Copy Webhook URL</strong>.
-                            </small>
-                            {% for error in form.discord_webhook_url.errors %}
-                                <span class="field-error" role="alert">{{ error }}</span>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <!-- Channel 4: Telegram Bot -->
+                    <!-- Channel 2: Telegram Bot -->
                     <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
                         <div class="checkbox-group" style="margin-bottom: 12px;">
                             <div class="checkbox-group-content">
@@ -295,16 +247,6 @@
                         </form>
                     </div>
 
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                        <div>
-                            <strong style="font-size: 13px;">Test Discord Alert</strong>
-                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0;">Send sample streak embed to your configured Discord webhook.</p>
-                        </div>
-                        <form method="POST" action="{{ url_for('main.send_test_discord') }}" style="display: inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-discord btn-sm" data-loading-text="Sending to Discord...">Send Test Discord</button>
-                        </form>
-                    </div>
 
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <div>
