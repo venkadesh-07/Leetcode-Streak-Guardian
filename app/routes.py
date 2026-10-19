@@ -312,6 +312,9 @@ def settings():
     try:
         sync_telegram_account_links()
         db.session.refresh(current_user)
+        if current_user.telegram_chat_id and not current_user.notify_telegram:
+            current_user.notify_telegram = True
+            db.session.commit()
         # Update form in case telegram was just connected
         form.telegram_chat_id.data = current_user.telegram_chat_id
         form.notify_telegram.data = current_user.notify_telegram

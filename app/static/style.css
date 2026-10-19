@@ -688,7 +688,6 @@ input::placeholder {
     align-items: center;
     gap: 12px;
     flex: 1;
-    pointer-events: none; /* Let parent handle full boundary clicks */
 }
 
 .checkbox-group input[type="checkbox"] {
