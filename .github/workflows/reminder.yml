@@ -35,6 +35,8 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMTP_USE_TLS: 'true'
           REMINDER_SENDER_EMAIL: ${{ secrets.REMINDER_SENDER_EMAIL || 'venkadesh3948a@gmail.com' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           echo "Executing Streak Guardian Automated Reminder Check..."
           python -m flask --app run:app check-reminders
+
