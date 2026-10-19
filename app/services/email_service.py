@@ -14,6 +14,34 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+import socket
+
+class IPv4SMTP(smtplib.SMTP):
+    """SMTP subclass that prioritizes IPv4 to avoid [Errno 101] Network is unreachable on broken cloud IPv6 stacks."""
+    def _get_socket(self, host, port, timeout):
+        try:
+            infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+            if infos:
+                err = None
+                for res in infos:
+                    af, socktype, proto, canonname, sa = res
+                    s = None
+                    try:
+                        s = socket.socket(af, socktype, proto)
+                        s.settimeout(timeout)
+                        s.connect(sa)
+                        return s
+                    except OSError as e:
+                        err = e
+                        if s:
+                            s.close()
+                if err:
+                    raise err
+        except Exception:
+            pass
+        return socket.create_connection((host, port), timeout)
+
+
 def validate_header_value(value):
     """
     Prevent email header injection by rejecting carriage return and newline characters.
@@ -72,7 +100,7 @@ def send_email(to_email, subject, body_text, body_html=None):
         msg.attach(MIMEText(body_html, "html", "utf-8"))
 
     try:
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+        with IPv4SMTP(smtp_host, smtp_port, timeout=10) as server:
             if smtp_use_tls:
                 server.starttls()
             if smtp_user and smtp_password:

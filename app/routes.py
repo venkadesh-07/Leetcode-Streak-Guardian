@@ -346,15 +346,29 @@ def send_test_email():
     )
 
     if res.get("success"):
-        flash(
-            f"Test alert email dispatched successfully to {target_email} (mode: {res.get('mode')}).",
-            "success",
-        )
+        if res.get("mode") == "simulated":
+            flash(
+                f"ℹ️ Email delivery was simulated (SMTP is not configured on this server). Target: {target_email}.",
+                "info",
+            )
+        else:
+            flash(
+                f"Test alert email dispatched successfully to {target_email}!",
+                "success",
+            )
     else:
-        flash(
-            f"Failed to dispatch test email: {res.get('error')}",
-            "error",
-        )
+        err_msg = str(res.get("error", ""))
+        if "Network is unreachable" in err_msg or "101" in err_msg:
+            flash(
+                "⚠️ Outbound SMTP ports (587/465) are blocked by Render's free tier ([Errno 101] Network is unreachable). "
+                "Your automated cloud reminders on GitHub Actions and Telegram bot alerts work without restrictions!",
+                "warning",
+            )
+        else:
+            flash(
+                f"Failed to dispatch test email: {err_msg}",
+                "error",
+            )
 
     return redirect(url_for("main.settings"))
 
@@ -381,10 +395,17 @@ def send_test_telegram():
     )
 
     if res.get("success"):
-        flash(
-            f"Test Telegram alert dispatched successfully to Chat ID {chat_id}! (mode: {res.get('mode')})",
-            "success",
-        )
+        if res.get("mode") == "simulated":
+            flash(
+                "⚠️ TELEGRAM_BOT_TOKEN is missing in your server's environment variables (Render Dashboard). "
+                "The alert was only simulated. Add TELEGRAM_BOT_TOKEN in your Render Dashboard ➔ Environment to deliver real Telegram messages.",
+                "warning",
+            )
+        else:
+            flash(
+                f"🎉 Test Telegram alert sent live to your Telegram app (Chat ID {chat_id})!",
+                "success",
+            )
     else:
         flash(
             f"Failed to dispatch Telegram alert: {res.get('error')}",

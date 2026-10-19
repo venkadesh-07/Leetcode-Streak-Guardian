@@ -84,11 +84,7 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         }
 
-        group.addEventListener("click", function (e) {
-            if (e.target.tagName === "INPUT" || e.target.tagName === "LABEL") {
-                setTimeout(function () { syncCheckboxGroup(group); }, 0);
-                return;
-            }
+        group.addEventListener("click", function () {
             if (checkbox) {
                 checkbox.checked = !checkbox.checked;
                 checkbox.dispatchEvent(new Event("change", { bubbles: true }));

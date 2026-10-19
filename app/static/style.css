@@ -672,13 +672,12 @@ input::placeholder {
 }
 
 .checkbox-group input[type="checkbox"] {
-    width: 20px;
-    height: 20px;
-    accent-color: var(--brand-amber);
-    cursor: pointer;
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
     margin: 0;
-    flex-shrink: 0;
-    pointer-events: auto;
 }
 
 .checkbox-group label {
@@ -688,6 +687,7 @@ input::placeholder {
     color: var(--text-primary);
     font-size: 14px;
     flex: 1;
+    pointer-events: none; /* Let .checkbox-group handle click cleanly */
 }
 
 /* Animated Toggle Switch Graphic on the Right */

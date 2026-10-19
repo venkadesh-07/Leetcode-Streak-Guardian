@@ -117,12 +117,9 @@
                                 </div>
 
                                 {% if current_user.telegram_chat_id %}
-                                    <form method="POST" action="{{ url_for('main.disconnect_telegram') }}" style="display: inline;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="btn btn-danger btn-sm" data-loading-text="Unlinking...">
-                                            Disconnect Telegram
-                                        </button>
-                                    </form>
+                                    <button type="submit" form="disconnect-telegram-form" class="btn btn-danger btn-sm" data-loading-text="Unlinking...">
+                                        Disconnect Telegram
+                                    </button>
                                 {% endif %}
                             </div>
 
@@ -229,6 +226,9 @@
                 <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                     {{ form.submit(class="btn btn-primary", value="Save Settings", **{"data-loading-text": "Saving Settings..."}) }}
                 </div>
+            </form>
+            <form id="disconnect-telegram-form" method="POST" action="{{ url_for('main.disconnect_telegram') }}" style="display: none;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             </form>
 
             <!-- Test Alert Dispatchers Section -->
