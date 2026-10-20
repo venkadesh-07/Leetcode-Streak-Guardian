@@ -86,19 +86,6 @@ class User(UserMixin, db.Model):
         db.String(64),
         nullable=True,
     )
-    notify_whatsapp = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=False,
-    )
-    whatsapp_phone = db.Column(
-        db.String(32),
-        nullable=True,
-    )
-    whatsapp_apikey = db.Column(
-        db.String(64),
-        nullable=True,
-    )
     api_token = db.Column(
         db.String(64),
         unique=True,
