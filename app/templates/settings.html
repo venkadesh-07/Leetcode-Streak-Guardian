@@ -221,6 +221,92 @@
                             </div>
                         </details>
                     </div>
+
+                    <!-- Channel 3: WhatsApp Alerts -->
+                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
+                        <div class="checkbox-group" style="margin-bottom: 12px;">
+                            <div class="checkbox-group-content">
+                                {{ form.notify_whatsapp() }}
+                                <label for="notify_whatsapp" style="font-weight: 600; color: #4ade80;">
+                                    💬 WhatsApp Instant Alerts (CallMeBot)
+                                </label>
+                            </div>
+                            <div class="toggle-switch-track">
+                                <div class="toggle-switch-thumb"></div>
+                            </div>
+                        </div>
+
+                        <!-- WhatsApp Connection Card -->
+                        <div style="background: rgba(37, 211, 102, 0.06); border: 1px solid rgba(37, 211, 102, 0.25); border-radius: var(--radius-md); padding: 18px; margin-bottom: 14px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 20px;">📱</span>
+                                    <strong style="color: #4ade80; font-size: 14px;">WhatsApp Gateway</strong>
+                                    {% if current_user.whatsapp_phone and current_user.whatsapp_apikey %}
+                                        <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11px; padding: 3px 10px; border-radius: 9999px;">🟢 Connected ({{ current_user.whatsapp_phone }})</span>
+                                    {% else %}
+                                        <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 11px; padding: 3px 10px; border-radius: 9999px;">⏳ Setup Required</span>
+                                    {% endif %}
+                                </div>
+
+                                {% if current_user.whatsapp_phone %}
+                                    <button type="submit" form="disconnect-whatsapp-form" class="btn btn-danger btn-sm" data-loading-text="Disconnecting...">
+                                        Disconnect WhatsApp
+                                    </button>
+                                {% endif %}
+                            </div>
+
+                            <!-- 30-Second Fast Setup Walkthrough -->
+                            <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 16px;">
+                                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #4ade80; font-weight: 700; margin-bottom: 6px;">
+                                    ⚡ 30-Second Fast Setup (Free Forever)
+                                </div>
+                                <ol style="font-size: 13px; color: var(--text-secondary); margin: 0 0 12px 18px; padding: 0; line-height: 1.6;">
+                                    <li>Click the button below to open WhatsApp with the pre-filled authorization text:</li>
+                                    <li>Tap <strong>Send</strong> in WhatsApp. CallMeBot will instantly reply with your personal <strong>API Key</strong>.</li>
+                                    <li>Enter your phone number & paste your API Key below, then click <strong>Save Settings</strong>.</li>
+                                </ol>
+
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <a href="{{ whatsapp_setup_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" style="background: #25d366; color: #000; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius-sm);">
+                                        <span>📲 1-Click Open WhatsApp & Get Key &rarr;</span>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    {{ form.whatsapp_phone.label }}
+                                    {{ form.whatsapp_phone(
+                                        autocomplete="tel",
+                                        maxlength="32",
+                                        placeholder="e.g. +919876543210"
+                                    ) }}
+                                    <small class="form-help">
+                                        Include country code (e.g. +91 for India, +1 for US).
+                                    </small>
+                                    {% for error in form.whatsapp_phone.errors %}
+                                        <span class="field-error" role="alert">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    {{ form.whatsapp_apikey.label }}
+                                    {{ form.whatsapp_apikey(
+                                        autocomplete="off",
+                                        maxlength="64",
+                                        placeholder="e.g. 849201"
+                                    ) }}
+                                    <small class="form-help">
+                                        The API key CallMeBot messaged back to you on WhatsApp.
+                                    </small>
+                                    {% for error in form.whatsapp_apikey.errors %}
+                                        <span class="field-error" role="alert">{{ error }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
@@ -228,6 +314,9 @@
                 </div>
             </form>
             <form id="disconnect-telegram-form" method="POST" action="{{ url_for('main.disconnect_telegram') }}" style="display: none;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            </form>
+            <form id="disconnect-whatsapp-form" method="POST" action="{{ url_for('main.disconnect_whatsapp') }}" style="display: none;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             </form>
 
@@ -247,7 +336,6 @@
                         </form>
                     </div>
 
-
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <div>
                             <strong style="font-size: 13px;">Test Telegram Alert</strong>
@@ -256,6 +344,17 @@
                         <form method="POST" action="{{ url_for('main.send_test_telegram') }}" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-telegram btn-sm" data-loading-text="Sending to Telegram...">Send Test Telegram</button>
+                        </form>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <strong style="font-size: 13px;">Test WhatsApp Alert</strong>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0;">Send sample streak message to your personal WhatsApp.</p>
+                        </div>
+                        <form method="POST" action="{{ url_for('main.send_test_whatsapp') }}" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm" style="background: #25d366; color: #000; font-weight: 700;" data-loading-text="Sending to WhatsApp...">Send Test WhatsApp</button>
                         </form>
                     </div>
                 </div>

@@ -133,6 +133,26 @@ class SettingsForm(FlaskForm):
         ],
     )
 
+    notify_whatsapp = BooleanField(
+        "Enable WhatsApp Instant Alerts"
+    )
+
+    whatsapp_phone = StringField(
+        "WhatsApp Phone Number (with Country Code)",
+        validators=[
+            Optional(),
+            Length(max=32),
+        ],
+    )
+
+    whatsapp_apikey = StringField(
+        "CallMeBot WhatsApp API Key",
+        validators=[
+            Optional(),
+            Length(max=64),
+        ],
+    )
+
     submit = SubmitField("Save settings")
 
     def validate_telegram_chat_id(self, field):
@@ -142,4 +162,28 @@ class SettingsForm(FlaskForm):
             if not validate_telegram_chat_id(cid):
                 raise ValidationError(
                     "Invalid Telegram Chat ID. Chat ID must be numeric (e.g. 123456789)."
+                )
+
+    def validate_whatsapp_phone(self, field):
+        from app.services.whatsapp_service import sanitize_phone_number
+        raw_val = (field.data or "").strip()
+        if raw_val:
+            cleaned = sanitize_phone_number(raw_val)
+            digits = re.sub(r"\D", "", cleaned)
+            if len(digits) < 7 or len(digits) > 16:
+                raise ValidationError(
+                    "Please enter a valid international phone number with country code (e.g. +919876543210)."
+                )
+
+    def validate_notify_whatsapp(self, field):
+        if field.data:
+            phone = (self.whatsapp_phone.data or "").strip()
+            apikey = (self.whatsapp_apikey.data or "").strip()
+            if not phone:
+                raise ValidationError(
+                    "Please provide your WhatsApp phone number to enable WhatsApp alerts."
+                )
+            if not apikey:
+                raise ValidationError(
+                    "Please provide your CallMeBot API Key to enable WhatsApp alerts."
                 )

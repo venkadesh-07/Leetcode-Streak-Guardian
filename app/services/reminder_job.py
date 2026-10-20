@@ -106,6 +106,24 @@ def run_reminder_check():
                     else:
                         stats["errors"].append(f"{user_identifier}: Failed to dispatch Telegram alert ({tg_res.get('error')})")
 
+                # 4. Dispatch WhatsApp if enabled
+                if getattr(user, "notify_whatsapp", False) and user.whatsapp_phone and user.whatsapp_apikey:
+                    from app.services.whatsapp_service import send_whatsapp_streak_reminder
+                    wa_res = send_whatsapp_streak_reminder(
+                        phone=user.whatsapp_phone,
+                        apikey=user.whatsapp_apikey,
+                        user=user,
+                        submissions_today=result["submissions_today"],
+                        current_streak=result["current_streak"],
+                        date_utc=today_utc,
+                    )
+
+                    if wa_res.get("success"):
+                        dispatched_any = True
+                        logger.info(f"{user_identifier}: Streak reminder WhatsApp alert sent (mode: {wa_res.get('mode')}).")
+                    else:
+                        stats["errors"].append(f"{user_identifier}: Failed to dispatch WhatsApp alert ({wa_res.get('error')})")
+
                 user.last_reminder_sent_date_utc = today_utc
                 user.last_reminder_sent_at = now_ts
                 if dispatched_any:

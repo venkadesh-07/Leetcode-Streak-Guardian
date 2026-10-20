@@ -275,6 +275,23 @@ def settings():
             else None
         )
 
+        current_user.notify_whatsapp = bool(
+            form.notify_whatsapp.data
+        )
+
+        from app.services.whatsapp_service import sanitize_phone_number
+        current_user.whatsapp_phone = (
+            sanitize_phone_number(form.whatsapp_phone.data)
+            if form.whatsapp_phone.data
+            else None
+        )
+
+        current_user.whatsapp_apikey = (
+            form.whatsapp_apikey.data.strip()
+            if form.whatsapp_apikey.data
+            else None
+        )
+
         try:
             db.session.commit()
         except SQLAlchemyError:
@@ -315,6 +332,8 @@ def settings():
         else 0
     )
 
+    whatsapp_setup_url = "https://api.whatsapp.com/send?phone=34644442086&text=I%20allow%20callmebot%20to%20send%20me%20messages"
+
     return render_template(
         "settings.html",
         form=form,
@@ -322,6 +341,7 @@ def settings():
         bot_username=bot_username,
         telegram_pin=telegram_pin,
         linked_accounts_count=linked_accounts_count,
+        whatsapp_setup_url=whatsapp_setup_url,
     )
 
 
@@ -427,6 +447,56 @@ def disconnect_telegram():
     except SQLAlchemyError:
         db.session.rollback()
         flash("Could not unlink Telegram account. Please try again.", "error")
+    return redirect(url_for("main.settings"))
+
+
+@main.route("/settings/test-whatsapp", methods=["POST"])
+@login_required
+@limiter.limit("5 per minute")
+def send_test_whatsapp():
+    """Send an instant sample streak reminder message to the user's configured WhatsApp via CallMeBot."""
+    phone = current_user.whatsapp_phone
+    apikey = current_user.whatsapp_apikey
+
+    if not phone or not apikey:
+        flash("Please enter and save both your WhatsApp phone number and CallMeBot API Key in Settings first.", "error")
+        return redirect(url_for("main.settings"))
+
+    from app.services.whatsapp_service import send_test_whatsapp_message
+    res = send_test_whatsapp_message(
+        phone=phone,
+        apikey=apikey,
+        user=current_user,
+    )
+
+    if res.get("success"):
+        flash(
+            f"🎉 Test WhatsApp alert dispatched to {phone}! Check your WhatsApp app.",
+            "success",
+        )
+    else:
+        err_msg = res.get("error", "Unknown error")
+        flash(
+            f"Failed to dispatch WhatsApp alert: {err_msg}",
+            "error",
+        )
+
+    return redirect(url_for("main.settings"))
+
+
+@main.route("/settings/disconnect-whatsapp", methods=["POST"])
+@login_required
+def disconnect_whatsapp():
+    """Allows user to disconnect their WhatsApp alerts in 1 click."""
+    current_user.whatsapp_phone = None
+    current_user.whatsapp_apikey = None
+    current_user.notify_whatsapp = False
+    try:
+        db.session.commit()
+        flash("WhatsApp alerts disconnected successfully.", "info")
+    except SQLAlchemyError:
+        db.session.rollback()
+        flash("Could not disconnect WhatsApp. Please try again.", "error")
     return redirect(url_for("main.settings"))
 
 

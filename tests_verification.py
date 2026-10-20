@@ -726,6 +726,122 @@ class SecurityControlsTestCase(unittest.TestCase):
 
         print("  [PASS] Test 21: 6-Digit PIN pairing, Option B multi-user squad linking, and /streak reporting verified.")
 
+    def test_22_whatsapp_callmebot_integration(self):
+        """Verify WhatsApp CallMeBot service, form validation, reminder job dispatch, and disconnect routes."""
+        from unittest.mock import MagicMock
+        from app.services.whatsapp_service import (
+            sanitize_phone_number,
+            send_whatsapp_message,
+            send_whatsapp_streak_reminder,
+            send_test_whatsapp_message,
+        )
+
+        # 1. Phone number sanitization
+        self.assertEqual(sanitize_phone_number("+91 98765-43210"), "+919876543210")
+        self.assertEqual(sanitize_phone_number("919876543210"), "919876543210")
+        self.assertEqual(sanitize_phone_number("+1 (555) 234-5678"), "+15552345678")
+        self.assertEqual(sanitize_phone_number(""), "")
+
+        # 2. CallMeBot API Dispatch Mocking
+        mock_resp_success = MagicMock()
+        mock_resp_success.status_code = 200
+        mock_resp_success.text = "Message queued"
+
+        with patch("requests.get", return_value=mock_resp_success) as mock_get:
+            res = send_whatsapp_message("+919876543210", "849201", "Test message")
+            self.assertTrue(res["success"])
+            self.assertEqual(res["mode"], "live")
+            mock_get.assert_called_once()
+            called_url = mock_get.call_args[0][0]
+            called_params = mock_get.call_args[1].get("params", {})
+            self.assertEqual(called_url, "https://api.callmebot.com/whatsapp.php")
+            self.assertEqual(called_params.get("phone"), "+919876543210")
+            self.assertEqual(called_params.get("apikey"), "849201")
+
+        # 3. CallMeBot API Error Response Handling
+        mock_resp_err = MagicMock()
+        mock_resp_err.status_code = 200
+        mock_resp_err.text = "API Key not found or invalid"
+
+        with patch("requests.get", return_value=mock_resp_err):
+            res_err = send_whatsapp_message("+919876543210", "wrong_key", "Test message")
+            self.assertFalse(res_err["success"])
+            self.assertIn("not found", res_err["error"].lower())
+
+        # 4. Form Validation for WhatsApp fields
+        from werkzeug.datastructures import MultiDict
+        with self.app.test_request_context():
+            # Missing API Key when WhatsApp enabled
+            form_invalid = SettingsForm(
+                formdata=MultiDict({
+                    "reminder_enabled": "y",
+                    "notify_whatsapp": "y",
+                    "whatsapp_phone": "+919876543210",
+                    "whatsapp_apikey": "",
+                }),
+                meta={"csrf": False},
+            )
+            self.assertFalse(form_invalid.validate())
+            self.assertIn("notify_whatsapp", form_invalid.errors)
+
+            # Invalid short phone number
+            form_short_phone = SettingsForm(
+                formdata=MultiDict({
+                    "reminder_enabled": "y",
+                    "notify_whatsapp": "y",
+                    "whatsapp_phone": "123",
+                    "whatsapp_apikey": "849201",
+                }),
+                meta={"csrf": False},
+            )
+            self.assertFalse(form_short_phone.validate())
+            self.assertIn("whatsapp_phone", form_short_phone.errors)
+
+            # Valid form data
+            form_valid = SettingsForm(
+                formdata=MultiDict({
+                    "reminder_enabled": "y",
+                    "notify_whatsapp": "y",
+                    "whatsapp_phone": "+919876543210",
+                    "whatsapp_apikey": "849201",
+                }),
+                meta={"csrf": False},
+            )
+            self.assertTrue(form_valid.validate())
+
+            # 5. Database and Reminder Job Dispatch with WhatsApp
+            user = User(
+                email="wa_user@example.com",
+                leetcode_username="coder_wa",
+                reminder_enabled=True,
+                notify_email=False,
+                notify_telegram=False,
+                notify_whatsapp=True,
+                whatsapp_phone="+919876543210",
+                whatsapp_apikey="849201",
+                current_streak=14,
+            )
+            user.set_password("ValidPassword123!")
+            db.session.add(user)
+            db.session.commit()
+
+            from app.services.reminder_job import run_reminder_check
+            mock_activity = {
+                "active_today": False,
+                "submissions_today": 0,
+                "current_streak": 14,
+                "checked_date_utc": "2026-10-20",
+            }
+            with patch("app.services.reminder_job.check_daily_activity", return_value=mock_activity):
+                with patch("app.services.whatsapp_service.send_whatsapp_message", return_value={"success": True, "mode": "live"}):
+                    stats = run_reminder_check()
+                    self.assertEqual(stats["reminders_sent"], 1)
+
+            # 6. Disconnect WhatsApp route CSRF protection
+            disc_resp = self.client.post("/settings/disconnect-whatsapp")
+            self.assertEqual(disc_resp.status_code, 400)  # CSRF protected
+
+        print("  [PASS] Test 22: WhatsApp CallMeBot service, form validation, reminder job dispatch, and disconnect routes verified.")
 
 
 if __name__ == "__main__":
@@ -734,8 +850,7 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=1)
     result = runner.run(suite)
     if result.wasSuccessful():
-        print("\nALL 21 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
+        print("\nALL 22 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
     else:
-
         print("\nSOME CHECKS FAILED. Review errors above.\n")
         exit(1)
