@@ -86,6 +86,15 @@ class User(UserMixin, db.Model):
         db.String(64),
         nullable=True,
     )
+    notify_ntfy = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+    )
+    ntfy_topic = db.Column(
+        db.String(64),
+        nullable=True,
+    )
     api_token = db.Column(
         db.String(64),
         unique=True,
@@ -113,6 +122,17 @@ class User(UserMixin, db.Model):
         if not self.api_token:
             self.api_token = secrets.token_hex(24)
         return self.api_token
+
+    def get_or_create_ntfy_topic(self):
+        """Returns or creates a personalized default ntfy topic name."""
+        import re
+        import secrets
+        if not self.ntfy_topic:
+            raw_user = (self.leetcode_username or (self.email.split('@')[0] if self.email else 'user'))
+            clean_user = re.sub(r'[^a-zA-Z0-9]', '', raw_user)[:12].lower() or 'coder'
+            rand_hex = secrets.token_hex(3)
+            self.ntfy_topic = f"lc-streak-{clean_user}-{rand_hex}"
+        return self.ntfy_topic
 
     def get_or_create_telegram_pin(self, force_refresh=False):
         """

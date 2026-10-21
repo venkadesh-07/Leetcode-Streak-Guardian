@@ -144,6 +144,8 @@ def create_app(test_config=None):
                     conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_whatsapp BOOLEAN NOT NULL DEFAULT FALSE;'))
                     conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(32);'))
                     conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_apikey VARCHAR(64);'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_ntfy BOOLEAN NOT NULL DEFAULT FALSE;'))
+                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS ntfy_topic VARCHAR(64);'))
                     conn.commit()
         except Exception:
             pass
