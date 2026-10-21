@@ -106,10 +106,12 @@ def run_reminder_check():
                     else:
                         stats["errors"].append(f"{user_identifier}: Failed to dispatch Telegram alert ({tg_res.get('error')})")
 
-                user.last_reminder_sent_date_utc = today_utc
-                user.last_reminder_sent_at = now_ts
                 if dispatched_any:
+                    user.last_reminder_sent_date_utc = today_utc
+                    user.last_reminder_sent_at = now_ts
                     stats["reminders_sent"] += 1
+                else:
+                    logger.warning(f"{user_identifier}: No reminders could be dispatched (check channel configs/credentials). Cooldown not updated.")
 
         try:
             db.session.commit()
