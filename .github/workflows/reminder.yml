@@ -2,8 +2,8 @@ name: Daily Streak Reminder Check
 
 on:
   schedule:
-    # Runs hourly to verify streak progress and dispatch reminders promptly once 4-hour cooldown expires
-    - cron: '0 * * * *'
+    # Runs every 30 minutes at off-peak minutes (:15 and :45) to avoid GitHub top-of-hour congestion
+    - cron: '15,45 * * * *'
   workflow_dispatch:
 
 jobs:
