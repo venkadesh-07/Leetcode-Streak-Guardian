@@ -47,7 +47,7 @@ def home():
 
 
 @main.route("/register", methods=["GET", "POST"])
-@limiter.limit("5 per hour")
+@limiter.limit("5 per hour", methods=["POST"])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for("main.dashboard"))
@@ -92,7 +92,7 @@ def register():
 
 
 @main.route("/login", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("5 per minute", methods=["POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for("main.dashboard"))

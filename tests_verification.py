@@ -62,28 +62,62 @@ class SecurityControlsTestCase(unittest.TestCase):
         print("  [PASS] Test 2: CSRF rejection verified (POST without token returned 400).")
 
     def test_03_rate_limiting_enforcement(self):
-        """Verify that exceeding rate limits returns HTTP 429 Too Many Requests."""
-        # /login is limited to 5 per minute
-        responses = []
-        for _ in range(7):
-            r = self.client.get("/login")
-            responses.append(r.status_code)
+        """Verify that exceeding rate limits on POST requests returns HTTP 429 while GET requests remain unblocked."""
+        # 1. GET requests to /login should NEVER be rate-limited (user can view/refresh page freely)
+        for _ in range(8):
+            get_res = self.client.get("/login")
+            self.assertEqual(get_res.status_code, 200)
 
-        # First 5 should succeed (200), remaining must be 429
-        self.assertEqual(responses[:5], [200, 200, 200, 200, 200])
-        self.assertEqual(responses[5:], [429, 429])
-        print(f"  [PASS] Test 3: Rate limiting enforced on /login (Responses: {responses}).")
+        # 2. Extract CSRF token from page to make valid form submission attempts
+        import re
+        page = self.client.get("/login")
+        match = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', page.text)
+        csrf_token = match.group(1) if match else ""
+
+        # 3. POST requests to /login are limited to 5 per minute
+        post_responses = []
+        for _ in range(7):
+            r = self.client.post(
+                "/login",
+                data={
+                    "email": "user@example.com",
+                    "password": "WrongPassword123!",
+                    "csrf_token": csrf_token,
+                },
+            )
+            post_responses.append(r.status_code)
+
+        # First 5 should succeed through to form validation failure (200), remaining must be 429 Too Many Requests
+        self.assertEqual(post_responses[:5], [200, 200, 200, 200, 200])
+        self.assertEqual(post_responses[5:], [429, 429])
+        print(f"  [PASS] Test 3: Rate limiting strictly enforced on POST /login (Responses: {post_responses}) while GET remains unblocked.")
 
     def test_04_unrelated_routes_not_blocked(self):
-        """Verify that hitting the rate limit on /login does not block unrelated routes like /."""
-        # Trigger rate limit on /login
+        """Verify that hitting the rate limit on POST /login does not block unrelated routes like / or GET /login."""
+        import re
+        page = self.client.get("/login")
+        match = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', page.text)
+        csrf_token = match.group(1) if match else ""
+
+        # Trigger rate limit on POST /login
         for _ in range(7):
-            self.client.get("/login")
+            self.client.post(
+                "/login",
+                data={
+                    "email": "user@example.com",
+                    "password": "WrongPassword123!",
+                    "csrf_token": csrf_token,
+                },
+            )
 
         # Request to homepage / should still succeed with 200 OK
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        print("  [PASS] Test 4: Unrelated route (/) remains accessible after /login rate limit.")
+
+        # Viewing /login via GET should ALSO remain accessible with 200 OK
+        login_view = self.client.get("/login")
+        self.assertEqual(login_view.status_code, 200)
+        print("  [PASS] Test 4: Unrelated routes and GET requests remain fully accessible after POST rate limit.")
 
     def test_05_input_validation_password_complexity(self):
         """Verify that RegistrationForm rejects passwords that do not meet complexity requirements."""
