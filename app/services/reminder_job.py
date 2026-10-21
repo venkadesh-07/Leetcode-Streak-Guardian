@@ -106,23 +106,6 @@ def run_reminder_check():
                     else:
                         stats["errors"].append(f"{user_identifier}: Failed to dispatch Telegram alert ({tg_res.get('error')})")
 
-                # 4. Dispatch ntfy.sh Mobile & Desktop Push Alerts if enabled
-                if getattr(user, "notify_ntfy", False) and getattr(user, "ntfy_topic", None):
-                    from app.services.ntfy_service import send_ntfy_streak_reminder
-                    ntfy_res = send_ntfy_streak_reminder(
-                        topic=user.ntfy_topic,
-                        user=user,
-                        submissions_today=result["submissions_today"],
-                        current_streak=result["current_streak"],
-                        date_utc=today_utc,
-                    )
-
-                    if ntfy_res.get("success"):
-                        dispatched_any = True
-                        logger.info(f"{user_identifier}: Streak reminder ntfy push alert sent (mode: {ntfy_res.get('mode')}).")
-                    else:
-                        stats["errors"].append(f"{user_identifier}: Failed to dispatch ntfy push alert ({ntfy_res.get('error')})")
-
                 user.last_reminder_sent_date_utc = today_utc
                 user.last_reminder_sent_at = now_ts
                 if dispatched_any:

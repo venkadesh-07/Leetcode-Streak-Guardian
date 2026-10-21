@@ -98,10 +98,7 @@
                             {% if user.notify_telegram and user.telegram_chat_id %}
                                 <span class="badge" style="background: rgba(0, 136, 204, 0.15); color: #38bdf8; font-size: 12px; padding: 4px 10px; border-radius: 9999px;">🤖 Telegram Bot</span>
                             {% endif %}
-                            {% if user.notify_ntfy and user.ntfy_topic %}
-                                <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 12px; padding: 4px 10px; border-radius: 9999px;">📱 Mobile Push</span>
-                            {% endif %}
-                            {% if not (user.notify_email and user.reminder_email) and not (user.notify_telegram and user.telegram_chat_id) and not (user.notify_ntfy and user.ntfy_topic) %}
+                            {% if not (user.notify_email and user.reminder_email) and not (user.notify_telegram and user.telegram_chat_id) %}
                                 <span style="color: var(--warning-text); font-size: 13px;">⚠️ No channels configured</span>
                             {% endif %}
                         {% else %}
@@ -120,36 +117,21 @@
             </div>
         </section>
 
-        <!-- Multi-Channel Live Protection Status Card -->
+        <!-- Telegram & Email Live Protection Status Card -->
         <section class="card" style="background: linear-gradient(180deg, rgba(17, 24, 39, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
                 <div>
-                    <h2>🛡️ Multi-Channel Instant Guard</h2>
-                    <p class="subtitle" style="margin-bottom: 0;">24/7 background checks monitor your profile and dispatch alerts directly to your phone, Telegram, and inbox.</p>
+                    <h2>🤖 Telegram & Email Instant Guard</h2>
+                    <p class="subtitle" style="margin-bottom: 0;">24/7 background checks monitor your profile and dispatch alerts directly to your Telegram chat and inbox.</p>
                 </div>
-                {% if user.notify_ntfy and user.ntfy_topic %}
-                    <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 12px; padding: 4px 12px; border-radius: 9999px;">🟢 Mobile Push Active</span>
-                {% elif user.notify_telegram and user.telegram_chat_id %}
+                {% if user.notify_telegram and user.telegram_chat_id %}
                     <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 12px; padding: 4px 12px; border-radius: 9999px;">🟢 Telegram Active</span>
                 {% else %}
-                    <a href="{{ url_for('main.settings') }}" class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 12px; padding: 4px 12px; border-radius: 9999px; text-decoration: none;">⚡ Enable Push / Telegram</a>
+                    <a href="{{ url_for('main.settings') }}" class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 12px; padding: 4px 12px; border-radius: 9999px; text-decoration: none;">⚡ Connect Telegram</a>
                 {% endif %}
             </div>
 
             <div class="features-grid" style="margin: 0 0 16px 0;">
-                <div class="feature-box" style="padding: 16px;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                        <span style="font-size: 20px;">📱</span>
-                        <strong style="color: #fbbf24; font-size: 14px;">Mobile Push (ntfy)</strong>
-                    </div>
-                    <p class="feature-desc" style="font-size: 12px; margin-bottom: 0;">
-                        {% if user.notify_ntfy and user.ntfy_topic %}
-                            Active: <code>{{ user.ntfy_topic }}</code>
-                        {% else %}
-                            Instant loud phone notifications with zero sign-up.
-                        {% endif %}
-                    </p>
-                </div>
                 <div class="feature-box" style="padding: 16px;">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                         <span style="font-size: 20px;">🤖</span>

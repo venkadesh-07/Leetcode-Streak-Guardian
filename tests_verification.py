@@ -726,98 +726,6 @@ class SecurityControlsTestCase(unittest.TestCase):
 
         print("  [PASS] Test 21: 6-Digit PIN pairing, Option B multi-user squad linking, and /streak reporting verified.")
 
-    def test_22_ntfy_push_notifications_and_settings(self):
-        """Verify ntfy.sh push notification service, topic sanitization, form validation, and reminder dispatch."""
-        from app.services.ntfy_service import (
-            sanitize_topic_name,
-            send_ntfy_notification,
-            send_ntfy_streak_reminder,
-            send_test_ntfy_alert,
-        )
-
-        # 1. Topic sanitization
-        self.assertEqual(sanitize_topic_name("lc-streak-user_123"), "lc-streak-user_123")
-        self.assertEqual(sanitize_topic_name("  lc-streak!@#$99  "), "lc-streak99")
-        self.assertEqual(sanitize_topic_name(""), "")
-
-        # 2. Topic validation in SettingsForm
-        from werkzeug.datastructures import MultiDict
-        with self.app.test_request_context():
-            valid_form = SettingsForm(
-                formdata=MultiDict({"ntfy_topic": "my-topic_123", "notify_ntfy": "y"}),
-                meta={"csrf": False},
-            )
-            self.assertTrue(valid_form.validate())
-            self.assertNotIn("ntfy_topic", valid_form.errors)
-
-            invalid_form = SettingsForm(
-                formdata=MultiDict({"ntfy_topic": "invalid topic with spaces!", "notify_ntfy": "y"}),
-                meta={"csrf": False},
-            )
-            self.assertFalse(invalid_form.validate())
-            self.assertIn("ntfy_topic", invalid_form.errors)
-
-        # 3. Notification dispatch mock
-        with patch("requests.post") as mock_post:
-            mock_post.return_value.status_code = 200
-            mock_post.return_value.text = '{"id":"test-123"}'
-
-            res = send_ntfy_notification(
-                topic="test-topic",
-                message="Your streak is at risk!",
-                title="🔥 Streak Alert",
-                priority="5",
-            )
-            self.assertTrue(res["success"])
-            self.assertEqual(res["status_code"], 200)
-
-            # Check post call arguments
-            mock_post.assert_called_once()
-            call_args, call_kwargs = mock_post.call_args
-            self.assertEqual(call_args[0], "https://ntfy.sh/test-topic")
-            self.assertEqual(call_kwargs["headers"]["Priority"], "5")
-            self.assertIn("Actions", call_kwargs["headers"])
-
-        # 4. User model default topic generation
-        with self.app.app_context():
-            user = User(email="testcoder@example.com", leetcode_username="alice_coder")
-            topic = user.get_or_create_ntfy_topic()
-            self.assertTrue(topic.startswith("lc-streak-alicecoder-"))
-
-        # 5. Reminder job dispatch integration
-        from app.services.reminder_job import run_reminder_check
-        with self.app.app_context():
-            test_user = User(
-                email="pushuser@example.com",
-                leetcode_username="push_dev",
-                reminder_enabled=True,
-                notify_email=False,
-                notify_telegram=False,
-                notify_ntfy=True,
-                ntfy_topic="push-dev-topic",
-            )
-            test_user.set_password("SecurePassword123!")
-            db.session.add(test_user)
-            db.session.commit()
-
-            mock_activity = {
-                "active_today": False,
-                "submissions_today": 0,
-                "current_streak": 25,
-                "checked_date_utc": "2026-10-21",
-            }
-            with patch("app.services.reminder_job.check_daily_activity", return_value=mock_activity):
-                with patch("app.services.ntfy_service.send_ntfy_notification", return_value={"success": True, "mode": "live"}):
-                    stats = run_reminder_check()
-                    self.assertEqual(stats["eligible_users"], 1)
-                    self.assertEqual(stats["reminders_sent"], 1)
-
-        # 6. CSRF protection on test-ntfy endpoint
-        resp = self.client.post("/settings/test-ntfy")
-        self.assertEqual(resp.status_code, 400)
-
-        print("  [PASS] Test 22: ntfy.sh push notification service, topic sanitization, form validation, and reminder dispatch verified.")
-
 
 if __name__ == "__main__":
     print("\nRunning Security & Rate Limiting Verification Suite...")
@@ -825,7 +733,7 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=1)
     result = runner.run(suite)
     if result.wasSuccessful():
-        print("\nALL 22 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
+        print("\nALL 21 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
     else:
         print("\nSOME CHECKS FAILED. Review errors above.\n")
         exit(1)

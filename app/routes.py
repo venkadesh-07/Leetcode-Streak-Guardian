@@ -275,16 +275,6 @@ def settings():
             else None
         )
 
-        current_user.notify_ntfy = bool(
-            form.notify_ntfy.data
-        )
-
-        current_user.ntfy_topic = (
-            form.ntfy_topic.data.strip()
-            if form.ntfy_topic.data
-            else None
-        )
-
         try:
             db.session.commit()
         except SQLAlchemyError:
@@ -325,12 +315,6 @@ def settings():
         else 0
     )
 
-    # Ensure user has a default ntfy topic assigned
-    ntfy_topic = current_user.get_or_create_ntfy_topic()
-    if request.method == "GET" and not form.ntfy_topic.data:
-        form.ntfy_topic.data = ntfy_topic
-    db.session.commit()
-
     return render_template(
         "settings.html",
         form=form,
@@ -338,7 +322,6 @@ def settings():
         bot_username=bot_username,
         telegram_pin=telegram_pin,
         linked_accounts_count=linked_accounts_count,
-        ntfy_topic=ntfy_topic,
     )
 
 
@@ -444,33 +427,6 @@ def disconnect_telegram():
     except SQLAlchemyError:
         db.session.rollback()
         flash("Could not unlink Telegram account. Please try again.", "error")
-    return redirect(url_for("main.settings"))
-
-
-@main.route("/settings/test-ntfy", methods=["POST"])
-@login_required
-@limiter.limit("5 per minute")
-def send_test_ntfy():
-    """Send an instant sample streak reminder push notification to user's ntfy topic."""
-    topic = current_user.ntfy_topic or current_user.get_or_create_ntfy_topic()
-    if not topic:
-        flash("No ntfy topic configured. Please configure a topic name in Settings.", "error")
-        return redirect(url_for("main.settings"))
-
-    from app.services.ntfy_service import send_test_ntfy_alert
-    res = send_test_ntfy_alert(topic=topic, user=current_user)
-
-    if res.get("success"):
-        flash(
-            f"🎉 Test push notification dispatched to topic '{topic}'! Check your mobile or desktop device.",
-            "success",
-        )
-    else:
-        flash(
-            f"Failed to dispatch test push notification: {res.get('error')}",
-            "error",
-        )
-
     return redirect(url_for("main.settings"))
 
 

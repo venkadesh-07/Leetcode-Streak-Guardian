@@ -133,24 +133,6 @@ class SettingsForm(FlaskForm):
         ],
     )
 
-    notify_ntfy = BooleanField(
-        "Enable ntfy.sh Mobile & Desktop Push Alerts (Free)"
-    )
-
-    ntfy_topic = StringField(
-        "ntfy.sh Topic Name",
-        validators=[
-            Optional(),
-            Length(max=64),
-            Regexp(
-                r"^[a-zA-Z0-9_-]+$",
-                message=(
-                    "Use only letters, numbers, hyphens, and underscores for the ntfy topic."
-                ),
-            ),
-        ],
-    )
-
     submit = SubmitField("Save settings")
 
     def validate_telegram_chat_id(self, field):

@@ -141,11 +141,6 @@ def create_app(test_config=None):
                     conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS telegram_pin VARCHAR(6);'))
                     conn.execute(text('CREATE INDEX IF NOT EXISTS ix_user_telegram_pin ON "user" (telegram_pin);'))
                     conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS telegram_pin_expires_at BIGINT;'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_whatsapp BOOLEAN NOT NULL DEFAULT FALSE;'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(32);'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS whatsapp_apikey VARCHAR(64);'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_ntfy BOOLEAN NOT NULL DEFAULT FALSE;'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS ntfy_topic VARCHAR(64);'))
                     conn.commit()
         except Exception:
             pass

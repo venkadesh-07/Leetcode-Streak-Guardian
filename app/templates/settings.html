@@ -222,81 +222,6 @@
                         </details>
                     </div>
 
-                    <!-- Channel 3: ntfy.sh Mobile & Desktop Push Alerts -->
-                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
-                        <div class="checkbox-group" style="margin-bottom: 12px;">
-                            <div class="checkbox-group-content">
-                                {{ form.notify_ntfy() }}
-                                <label for="notify_ntfy" style="font-weight: 600; color: var(--text-primary);">
-                                    📱 Mobile & Desktop Push Alerts (ntfy.sh &bull; 100% Free & No Sign-up)
-                                </label>
-                            </div>
-                            <div class="toggle-switch-track">
-                                <div class="toggle-switch-thumb"></div>
-                            </div>
-                        </div>
-
-                        <!-- ntfy Guide & 1-Click Setup Card -->
-                        <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: var(--radius-md); padding: 18px; margin-bottom: 14px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 20px;">🔔</span>
-                                    <strong style="color: #fbbf24; font-size: 14px;">Instant Phone Push Alerts</strong>
-                                    <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11px; padding: 3px 10px; border-radius: 9999px;">Zero Sign-up Required</span>
-                                </div>
-                            </div>
-
-                            <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 12px 0; line-height: 1.5;">
-                                Receive loud, urgent push alerts on your phone whenever your streak is at risk before UTC midnight.
-                            </p>
-
-                            <div style="background: rgba(0, 0, 0, 0.25); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 14px;">
-                                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; font-weight: 700; margin-bottom: 8px;">
-                                    🚀 30-Second Setup Instructions:
-                                </div>
-                                <ol style="margin: 0; padding-left: 20px; font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
-                                    <li>
-                                        Install the free <strong>ntfy</strong> app on
-                                        <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener noreferrer" style="color: #60a5fa;">Android (Google Play)</a>,
-                                        <a href="https://f-droid.org/packages/io.heckel.ntfy/" target="_blank" rel="noopener noreferrer" style="color: #60a5fa;">F-Droid</a>, or
-                                        <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener noreferrer" style="color: #60a5fa;">iOS (App Store)</a> (or use your desktop browser).
-                                    </li>
-                                    <li>
-                                        Tap <strong>"+" (Subscribe to topic)</strong> and paste your private topic name below:
-                                    </li>
-                                </ol>
-
-                                <div style="display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap;">
-                                    <code id="ntfy-topic-display" style="font-size: 15px; font-weight: 700; color: #fbbf24; background: rgba(245, 158, 11, 0.12); padding: 6px 12px; border-radius: var(--radius-sm); letter-spacing: 0.5px;">{{ current_user.ntfy_topic or ntfy_topic }}</code>
-                                    <button type="button" id="copy-ntfy-topic-btn" class="btn btn-secondary btn-sm" data-topic="{{ current_user.ntfy_topic or ntfy_topic }}">
-                                        📋 Copy Topic
-                                    </button>
-                                    <a href="https://ntfy.sh/{{ current_user.ntfy_topic or ntfy_topic }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">
-                                        🌐 Open Web Feed &rarr;
-                                    </a>
-                                </div>
-                            </div>
-
-                            <details style="cursor: pointer;">
-                                <summary style="font-size: 12px; color: var(--text-muted);">Customize Topic Name (Optional)</summary>
-                                <div class="form-group" style="margin-top: 10px; margin-bottom: 0;">
-                                    {{ form.ntfy_topic.label }}
-                                    {{ form.ntfy_topic(
-                                        autocomplete="off",
-                                        maxlength="64",
-                                        placeholder="e.g. lc-streak-user-abc123"
-                                    ) }}
-                                    <small class="form-help">
-                                        Keep it unguessable and private. Letters, numbers, hyphens (-), and underscores (_) only.
-                                    </small>
-                                    {% for error in form.ntfy_topic.errors %}
-                                        <span class="field-error" role="alert">{{ error }}</span>
-                                    {% endfor %}
-                                </div>
-                            </details>
-                        </div>
-                    </div>
-
                 <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                     {{ form.submit(class="btn btn-primary", value="Save Settings", **{"data-loading-text": "Saving Settings..."}) }}
                 </div>
@@ -329,17 +254,6 @@
                         <form method="POST" action="{{ url_for('main.send_test_telegram') }}" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-telegram btn-sm" data-loading-text="Sending to Telegram...">Send Test Telegram</button>
-                        </form>
-                    </div>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                        <div>
-                            <strong style="font-size: 13px;">Test Mobile Push Alert (ntfy.sh)</strong>
-                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0;">Dispatch instant test push notification to your phone.</p>
-                        </div>
-                        <form method="POST" action="{{ url_for('main.send_test_ntfy') }}" style="display: inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-secondary btn-sm" data-loading-text="Dispatching Push...">Send Test Push Alert</button>
                         </form>
                     </div>
                 </div>

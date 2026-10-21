@@ -268,28 +268,6 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Copy ntfy topic name
-    const copyNtfyTopicBtn = document.getElementById("copy-ntfy-topic-btn");
-    if (copyNtfyTopicBtn) {
-        copyNtfyTopicBtn.addEventListener("click", function () {
-            const topic = copyNtfyTopicBtn.getAttribute("data-topic");
-            if (!topic) return;
-            navigator.clipboard.writeText(topic).then(function () {
-                const prevHtml = copyNtfyTopicBtn.innerHTML;
-                copyNtfyTopicBtn.classList.remove("btn-secondary");
-                copyNtfyTopicBtn.classList.add("btn-success");
-                copyNtfyTopicBtn.innerHTML = "<span>✓ Topic Copied!</span>";
-                setTimeout(function () {
-                    copyNtfyTopicBtn.classList.remove("btn-success");
-                    copyNtfyTopicBtn.classList.add("btn-secondary");
-                    copyNtfyTopicBtn.innerHTML = prevHtml;
-                }, 2000);
-            }).catch(function () {
-                window.prompt("Copy your ntfy.sh topic name:", topic);
-            });
-        });
-    }
-
 
     // ========================================================
     // 4. FULL-BOUNDARY CLICKABLE TOGGLE FOR CHECKBOX GROUPS
