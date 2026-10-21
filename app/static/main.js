@@ -62,38 +62,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // ========================================================
-    // 2.5 INTERACTIVE CHECKBOX-GROUP TOGGLE CARDS
-    // ========================================================
-    function syncCheckboxGroup(group) {
-        const checkbox = group.querySelector('input[type="checkbox"]');
-        if (!checkbox) return;
-        if (checkbox.checked) {
-            group.classList.add("is-checked");
-        } else {
-            group.classList.remove("is-checked");
-        }
-    }
-
-    document.querySelectorAll(".checkbox-group").forEach(function (group) {
-        syncCheckboxGroup(group);
-
-        const checkbox = group.querySelector('input[type="checkbox"]');
-        if (checkbox) {
-            checkbox.addEventListener("change", function () {
-                syncCheckboxGroup(group);
-            });
-        }
-
-        group.addEventListener("click", function () {
-            if (checkbox) {
-                checkbox.checked = !checkbox.checked;
-                checkbox.dispatchEvent(new Event("change", { bubbles: true }));
-                syncCheckboxGroup(group);
-            }
-        });
-    });
-
-    // ========================================================
     // 3. TELEGRAM 6-DIGIT PIN PAIRING & RADAR STATUS DETECTOR
     // ========================================================
     const connectTgBtn = document.getElementById("connect-telegram-btn");
