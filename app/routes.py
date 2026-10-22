@@ -525,7 +525,17 @@ def trigger_cron_reminders():
 
     from app.services.reminder_job import run_reminder_check
     stats = run_reminder_check()
-    return jsonify({"status": "success", "results": stats}), 200
+    # Return a lightweight summary to stay within cron-job.org's response size limit.
+    # Full error details are already written to server logs via logger.
+    summary = {
+        "checked_date_utc": stats.get("checked_date_utc"),
+        "eligible_users": stats.get("eligible_users", 0),
+        "reminders_sent": stats.get("reminders_sent", 0),
+        "already_protected": stats.get("already_protected", 0),
+        "interval_cooldown": stats.get("interval_cooldown", 0),
+        "error_count": len(stats.get("errors", [])),
+    }
+    return jsonify({"status": "success", "results": summary}), 200
 
 
 
