@@ -150,3 +150,7 @@ class User(UserMixin, db.Model):
         db.session.commit()
         return self.telegram_pin
 
+    def __repr__(self):
+        return f"<User id={self.id} email={self.email}>"
+
+

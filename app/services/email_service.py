@@ -131,6 +131,8 @@ def send_streak_reminder(user, submissions_today, current_streak, date_utc):
     if not recipient:
         raise ValueError("User does not have a configured reminder email.")
 
+    base_url = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5001").rstrip("/")
+
     subject = f"🔥 Streak Alert: Keep your {current_streak}-day LeetCode streak alive!"
 
     body_text = f"""Hello,
@@ -141,7 +143,7 @@ You currently have a {current_streak}-day streak, but no submissions have been r
 
 Solve at least one problem before 23:59 UTC to protect your streak!
 
-Your Dashboard: http://127.0.0.1:5001/dashboard
+Your Dashboard: {base_url}/dashboard
 
 Stay consistent. Keep coding!
 LeetCode Streak Guardian
@@ -168,6 +170,7 @@ LeetCode Streak Guardian
         <p>You currently hold a <strong>{current_streak}-day coding streak</strong> on LeetCode (<strong>{user.leetcode_username}</strong>), but no submissions have been detected yet today.</p>
         <p>Make sure to solve and submit at least one problem before the daily reset at <strong>23:59 UTC</strong> to keep your streak intact!</p>
         <a href="https://leetcode.com/problemset/" class="cta">Solve a Problem Now</a>
+        <p style="margin-top: 12px;"><a href="{base_url}/dashboard" style="color: #94a3b8; font-size: 13px;">View Your Dashboard</a></p>
         <footer>Stay consistent. Keep coding! &bull; LeetCode Streak Guardian</footer>
     </div>
 </body>

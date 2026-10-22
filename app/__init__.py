@@ -1,4 +1,5 @@
 
+import logging
 import os
 from pathlib import Path
 import re
@@ -7,7 +8,12 @@ import urllib.parse
 from dotenv import load_dotenv
 from flask import Flask
 
-from app.extensions import csrf, db, limiter, login_manager
+from app.extensions import csrf, db, limiter, login_manager, migrate
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -76,6 +82,13 @@ def create_app(test_config=None):
             SECRET_KEY=secret_key,
             SQLALCHEMY_DATABASE_URI=database_url,
             SQLALCHEMY_TRACK_MODIFICATIONS=False,
+            SQLALCHEMY_ENGINE_OPTIONS={
+                "pool_size": 5,
+                "max_overflow": 10,
+                "pool_timeout": 30,
+                "pool_recycle": 1800,
+                "pool_pre_ping": True,
+            },
             SESSION_COOKIE_HTTPONLY=True,
             SESSION_COOKIE_SAMESITE="Lax",
             SESSION_COOKIE_SECURE=is_production,
@@ -86,6 +99,7 @@ def create_app(test_config=None):
         )
 
     db.init_app(app)
+    migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
@@ -124,26 +138,9 @@ def create_app(test_config=None):
         except (TypeError, ValueError):
             return None
 
-    with app.app_context():
-        db.create_all()
-        try:
-            from sqlalchemy import text
-            if "postgresql" in str(db.engine.url):
-                with db.engine.connect() as conn:
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS api_token VARCHAR(64);'))
-                    conn.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS ix_user_api_token ON "user" (api_token);'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_email BOOLEAN NOT NULL DEFAULT TRUE;'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_desktop BOOLEAN NOT NULL DEFAULT TRUE;'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_discord BOOLEAN NOT NULL DEFAULT FALSE;'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS discord_webhook_url VARCHAR(255);'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS notify_telegram BOOLEAN NOT NULL DEFAULT FALSE;'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR(64);'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS telegram_pin VARCHAR(6);'))
-                    conn.execute(text('CREATE INDEX IF NOT EXISTS ix_user_telegram_pin ON "user" (telegram_pin);'))
-                    conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS telegram_pin_expires_at BIGINT;'))
-                    conn.commit()
-        except Exception:
-            pass
+    if test_config or "sqlite" in str(app.config.get("SQLALCHEMY_DATABASE_URI", "")):
+        with app.app_context():
+            db.create_all()
 
 
     @app.cli.command("check-reminders")

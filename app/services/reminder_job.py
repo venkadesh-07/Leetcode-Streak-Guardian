@@ -5,6 +5,7 @@ reminder notifications for any streaks at risk.
 Designed to be executed via Flask CLI command or scheduled background runner.
 """
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 import logging
 import time
@@ -44,15 +45,39 @@ def run_reminder_check():
         "errors": [],
     }
 
+    if not eligible_users:
+        return stats
+
+    # Concurrently check LeetCode activity across all eligible users
+    user_meta = [
+        (user.id, user.leetcode_username, f"User(id={user.id}, email={user.email})")
+        for user in eligible_users
+    ]
+    activity_results = {}
+    max_workers = min(10, len(user_meta))
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_meta = {
+            executor.submit(check_daily_activity, uname): (uid, uident)
+            for uid, uname, uident in user_meta
+        }
+        for future in as_completed(future_to_meta):
+            uid, uident = future_to_meta[future]
+            try:
+                activity_results[uid] = future.result()
+            except LeetCodeCheckerError as exc:
+                err_msg = f"{uident}: LeetCode check failed ({exc})"
+                logger.error(err_msg)
+                stats["errors"].append(err_msg)
+            except Exception as exc:
+                err_msg = f"{uident}: Unexpected error checking LeetCode ({exc})"
+                logger.error(err_msg)
+                stats["errors"].append(err_msg)
+
     for user in eligible_users:
         user_identifier = f"User(id={user.id}, email={user.email})"
-
-        try:
-            result = check_daily_activity(user.leetcode_username)
-        except LeetCodeCheckerError as exc:
-            err_msg = f"{user_identifier}: LeetCode check failed ({exc})"
-            logger.error(err_msg)
-            stats["errors"].append(err_msg)
+        result = activity_results.get(user.id)
+        if not result:
             continue
 
         # Update persistent streak stats
@@ -61,7 +86,7 @@ def run_reminder_check():
         user.is_active_today = result.get("active_today", False)
         user.last_checked_date_utc = today_utc
 
-        if result["active_today"]:
+        if result.get("active_today"):
             stats["already_protected"] += 1
             logger.info(f"{user_identifier}: Streak protected today ({result['submissions_today']} submissions). No alert needed.")
         else:
@@ -113,11 +138,12 @@ def run_reminder_check():
                 else:
                     logger.warning(f"{user_identifier}: No reminders could be dispatched (check channel configs/credentials). Cooldown not updated.")
 
-        try:
-            db.session.commit()
-        except SQLAlchemyError as exc:
-            db.session.rollback()
-            stats["errors"].append(f"{user_identifier}: Database commit failed ({exc})")
+    # Commit all user updates in a single batch instead of per-user
+    try:
+        db.session.commit()
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        stats["errors"].append(f"Batch database commit failed: {exc}")
 
     return stats
 

@@ -4,6 +4,7 @@ Delivers direct, private 1-on-1 messages to user chat IDs via Telegram Bot API.
 """
 
 from datetime import datetime, timezone
+import html
 import logging
 import os
 import re
@@ -134,6 +135,44 @@ def send_telegram_message(chat_id: str, text: str, parse_mode: str = "HTML") -> 
         return False
 
 
+def _build_welcome_single(user, first_name=None, tip_type="pin"):
+    """Build welcome HTML for a single linked account."""
+    safe_name = html.escape(str(user.leetcode_username or first_name or "Streak Guardian"))
+    tip = (
+        "💡 <i>Tip: Sharing this Telegram with friends? They can send their own 6-digit PIN in this chat to receive their alerts here too!</i>"
+        if tip_type == "pin"
+        else "We'll alert you right here whenever your streak is at risk before UTC midnight!"
+    )
+    return (
+        f"🎉 <b>LeetCode Streak Guardian Connected!</b>\n\n"
+        f"Welcome, <b>{safe_name}</b>!\n"
+        f"Your Telegram account is now linked to <code>{html.escape(str(user.email))}</code>.\n\n"
+        f"⚡ <b>Commands you can use anytime:</b>\n"
+        f"🔥 <code>/streak</code> - Check live LeetCode streak & today's progress\n"
+        f"ℹ️ <code>/help</code> - View bot commands\n\n"
+        f"{tip}"
+    )
+
+
+def _build_welcome_squad(user, all_linked, first_name=None):
+    """Build welcome HTML for a shared squad inbox."""
+    safe_name = html.escape(str(user.leetcode_username or first_name or "Streak Guardian"))
+    accounts_list = []
+    for idx, acc in enumerate(all_linked, 1):
+        uname = acc.leetcode_username or acc.email
+        accounts_list.append(f"{idx}. <b>{html.escape(str(uname))}</b> (<code>{html.escape(str(acc.email))}</code>)")
+    accounts_str = "\n".join(accounts_list)
+    return (
+        f"🎉 <b>Account Connected! (Shared Squad Inbox)</b>\n\n"
+        f"Welcome, <b>{safe_name}</b>!\n"
+        f"Your Telegram is now linked to <code>{html.escape(str(user.email))}</code>.\n\n"
+        f"👥 <b>Active accounts in this chat ({len(all_linked)}):</b>\n"
+        f"{accounts_str}\n\n"
+        f"All linked accounts will receive daily streak reminders right here!\n"
+        f"🔥 Send <code>/streak</code> anytime to check everyone's live progress."
+    )
+
+
 def process_telegram_update(item: dict) -> dict:
     """
     Process a single Telegram update dict (from getUpdates or Webhook).
@@ -193,34 +232,10 @@ def process_telegram_update(item: dict) -> dict:
             db.session.commit()
 
             all_linked = User.query.filter_by(telegram_chat_id=chat_id).all()
-            safe_name = html.escape(str(matched_user.leetcode_username or first_name or "Streak Guardian"))
-
             if len(all_linked) > 1:
-                accounts_list = []
-                for idx, acc in enumerate(all_linked, 1):
-                    uname = acc.leetcode_username or acc.email
-                    accounts_list.append(f"{idx}. <b>{html.escape(str(uname))}</b> (<code>{html.escape(str(acc.email))}</code>)")
-                accounts_str = "\n".join(accounts_list)
-
-                welcome_text = (
-                    f"🎉 <b>Account Connected! (Shared Squad Inbox)</b>\n\n"
-                    f"Welcome, <b>{safe_name}</b>!\n"
-                    f"Your Telegram is now linked to <code>{html.escape(str(matched_user.email))}</code>.\n\n"
-                    f"👥 <b>Active accounts in this chat ({len(all_linked)}):</b>\n"
-                    f"{accounts_str}\n\n"
-                    f"All linked accounts will receive daily streak reminders right here!\n"
-                    f"🔥 Send <code>/streak</code> anytime to check everyone's live progress."
-                )
+                welcome_text = _build_welcome_squad(matched_user, all_linked, first_name)
             else:
-                welcome_text = (
-                    f"🎉 <b>LeetCode Streak Guardian Connected!</b>\n\n"
-                    f"Welcome, <b>{safe_name}</b>!\n"
-                    f"Your Telegram account is now linked to <code>{html.escape(str(matched_user.email))}</code>.\n\n"
-                    f"⚡ <b>Commands you can use anytime:</b>\n"
-                    f"🔥 <code>/streak</code> - Check live LeetCode streak & today's progress\n"
-                    f"ℹ️ <code>/help</code> - View bot commands\n\n"
-                    f"💡 <i>Tip: Sharing this Telegram with friends? They can send their own 6-digit PIN in this chat to receive their alerts here too!</i>"
-                )
+                welcome_text = _build_welcome_single(matched_user, first_name, tip_type="pin")
 
             send_telegram_message(chat_id, welcome_text)
             return {"handled": True, "action": "linked", "user_id": matched_user.id, "mode": "pin"}
@@ -257,34 +272,10 @@ def process_telegram_update(item: dict) -> dict:
             db.session.commit()
 
             all_linked = User.query.filter_by(telegram_chat_id=chat_id).all()
-            safe_name = html.escape(str(user.leetcode_username or first_name or "Streak Guardian"))
-
             if len(all_linked) > 1:
-                accounts_list = []
-                for idx, acc in enumerate(all_linked, 1):
-                    uname = acc.leetcode_username or acc.email
-                    accounts_list.append(f"{idx}. <b>{html.escape(str(uname))}</b> (<code>{html.escape(str(acc.email))}</code>)")
-                accounts_str = "\n".join(accounts_list)
-
-                welcome_text = (
-                    f"🎉 <b>Account Connected! (Shared Squad Inbox)</b>\n\n"
-                    f"Welcome, <b>{safe_name}</b>!\n"
-                    f"Your Telegram is now linked to <code>{html.escape(str(user.email))}</code>.\n\n"
-                    f"👥 <b>Active accounts in this chat ({len(all_linked)}):</b>\n"
-                    f"{accounts_str}\n\n"
-                    f"All linked accounts will receive daily streak reminders right here!\n"
-                    f"🔥 Send <code>/streak</code> anytime to check everyone's live progress."
-                )
+                welcome_text = _build_welcome_squad(user, all_linked, first_name)
             else:
-                welcome_text = (
-                    f"🎉 <b>LeetCode Streak Guardian Connected!</b>\n\n"
-                    f"Welcome, <b>{safe_name}</b>!\n"
-                    f"Your Telegram account is now linked to <code>{html.escape(str(user.email))}</code>.\n\n"
-                    f"⚡ <b>Commands you can use anytime:</b>\n"
-                    f"🔥 <code>/streak</code> - Check live LeetCode streak & today's progress\n"
-                    f"ℹ️ <code>/help</code> - View bot commands\n\n"
-                    f"We'll alert you right here whenever your streak is at risk before UTC midnight!"
-                )
+                welcome_text = _build_welcome_single(user, first_name, tip_type="token")
             send_telegram_message(chat_id, welcome_text)
             return {"handled": True, "action": "linked", "user_id": user.id, "mode": "token"}
         else:
