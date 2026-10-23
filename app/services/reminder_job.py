@@ -8,6 +8,7 @@ Designed to be executed via Flask CLI command or scheduled background runner.
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 import logging
+import os
 import time
 from sqlalchemy.exc import SQLAlchemyError
 
