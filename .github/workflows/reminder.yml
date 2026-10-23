@@ -53,10 +53,12 @@ jobs:
             echo "✅ DATABASE_URL is configured."
           fi
 
-          if [ -z "$SMTP_PASSWORD" ]; then
-            echo "⚠️ WARNING: SMTP_PASSWORD secret is not set in GitHub Secrets. Email alerts will run in simulation mode."
+          if [ -n "$BREVO_API_KEY" ]; then
+            echo "✅ BREVO_API_KEY is configured (Emails will be sent via Brevo HTTPS API)."
+          elif [ -n "$SMTP_PASSWORD" ]; then
+            echo "✅ SMTP_PASSWORD is configured (Emails will be sent via SMTP)."
           else
-            echo "✅ SMTP_PASSWORD is configured."
+            echo "⚠️ WARNING: Neither BREVO_API_KEY nor SMTP_PASSWORD is set in GitHub Secrets. Email alerts will run in simulation mode."
           fi
 
           if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
