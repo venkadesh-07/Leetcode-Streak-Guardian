@@ -139,18 +139,29 @@ def get_telegram_bot_username() -> str:
 
 
 def send_telegram_message(chat_id: str, text: str, parse_mode: str = "HTML") -> bool:
-    """Send a plain or HTML message via the configured Telegram Bot."""
+    """Send a plain or HTML message via the configured Telegram Bot with plain text fallback."""
     bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     if not bot_token or not chat_id:
+        logger.warning(f"send_telegram_message: Missing bot_token or chat_id (chat_id: {chat_id})")
         return False
     try:
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         resp = requests.post(
             url,
-            json={"chat_id": chat_id, "text": text, "parse_mode": parse_mode},
+            json={"chat_id": str(chat_id).strip(), "text": text, "parse_mode": parse_mode},
             timeout=10,
         )
-        return resp.status_code == 200 and resp.json().get("ok", False)
+        if resp.status_code == 200 and resp.json().get("ok", False):
+            return True
+
+        # If HTML parsing failed or Telegram rejected formatting, retry as plain text without parse_mode
+        plain_text = re.sub(r"<[^>]+>", "", text)
+        resp2 = requests.post(
+            url,
+            json={"chat_id": str(chat_id).strip(), "text": plain_text},
+            timeout=10,
+        )
+        return resp2.status_code == 200 and resp2.json().get("ok", False)
     except Exception as e:
         logger.warning(f"Error sending Telegram message to {chat_id}: {e}")
         return False

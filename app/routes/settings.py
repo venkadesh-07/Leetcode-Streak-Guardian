@@ -249,7 +249,14 @@ def test_auto_rescue():
         if res.get("success"):
             sub_id = res.get("submission_id", "N/A")
             status = res.get("status", "Accepted")
-            flash(f"🎉 Auto-Rescue Test SUCCESS! LeetCode accepted your submission (ID: {sub_id}, Status: {status}). Your streak is protected!", "success")
+            notes = res.get("notifications", {})
+            tg_stat = notes.get("telegram", "not configured")
+            mail_stat = notes.get("email", "not configured")
+            flash(
+                f"🎉 Auto-Rescue Test SUCCESS! LeetCode accepted your submission (ID: {sub_id}, Status: {status}). "
+                f"Alerts dispatched — Telegram: {tg_stat} | Email: {mail_stat}. Your streak is protected!",
+                "success",
+            )
         else:
             err = res.get("error", "Unknown error")
             flash(f"❌ Auto-Rescue Test Failed: {err}", "error")

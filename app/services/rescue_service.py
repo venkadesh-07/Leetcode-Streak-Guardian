@@ -361,21 +361,31 @@ def _notify_rescue_event(user, success: bool, problem_slug: str, detail: dict):
                 f"Please log into LeetCode and solve today's problem manually before 23:59 UTC to keep your streak alive!"
             )
 
+        notifications = {"telegram": "not configured", "email": "not configured"}
+
         # 1. Telegram
-        if getattr(user, "notify_telegram", False) and user.telegram_chat_id:
+        if user.telegram_chat_id:
             try:
                 from app.services.telegram_service import send_telegram_message
-                send_telegram_message(str(user.telegram_chat_id), tg_text, parse_mode="HTML")
+                tg_ok = send_telegram_message(str(user.telegram_chat_id), tg_text, parse_mode="HTML")
+                notifications["telegram"] = "delivered" if tg_ok else "failed (check bot token or permissions)"
             except Exception as tg_err:
+                notifications["telegram"] = f"error: {tg_err}"
                 logger.warning(f"Failed to send Telegram rescue notice: {tg_err}")
 
         # 2. Email
         target_email = getattr(user, "reminder_email", None) or getattr(user, "email", None)
-        if getattr(user, "notify_email", False) and target_email:
+        if target_email:
             try:
                 from app.services.email_service import send_email
-                send_email(target_email, email_subj, email_body)
+                mail_res = send_email(target_email, email_subj, email_body)
+                notifications["email"] = mail_res.get("mode", "sent" if mail_res.get("success") else "failed")
             except Exception as mail_err:
+                notifications["email"] = f"error: {mail_err}"
                 logger.warning(f"Failed to send email rescue notice: {mail_err}")
+
+        detail["notifications"] = notifications
+        return notifications
     except Exception as exc:
         logger.warning(f"Unexpected error in _notify_rescue_event: {exc}")
+        return {"telegram": "error", "email": "error"}
