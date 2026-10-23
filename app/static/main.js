@@ -153,6 +153,20 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    const connectTgWebBtn = document.getElementById("connect-telegram-web-btn");
+    if (connectTgWebBtn) {
+        connectTgWebBtn.addEventListener("click", function () {
+            if (tgRadar) {
+                tgRadar.style.display = "block";
+                tgRadar.innerHTML = '<span class="btn-spinner"></span> <strong>Opening Telegram Web...</strong> Send your 6-digit PIN in the chat! (Checking automatically)';
+            }
+            pollAttempts = 0;
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(checkTelegramStatus, 2000);
+            setTimeout(checkTelegramStatus, 1500);
+        });
+    }
+
     // 1-Click Copy PIN
     if (copyPinBtn) {
         copyPinBtn.addEventListener("click", function () {

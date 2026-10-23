@@ -172,17 +172,17 @@
                                     </div>
 
                                     <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
-                                        <a href="{{ telegram_connect_url }}" id="connect-telegram-btn" target="_blank" rel="noopener noreferrer" class="btn btn-telegram btn-sm">
-                                            <span>✈️ Open Bot in Telegram</span>
+                                        <a href="{{ telegram_connect_url }}" id="connect-telegram-btn" target="_blank" rel="noopener noreferrer" class="btn btn-telegram btn-sm" title="Open in Telegram Desktop / Mobile App">
+                                            <span>✈️ Open in Telegram App</span>
+                                        </a>
+                                        <a href="{{ telegram_web_url }}" id="connect-telegram-web-btn" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="background: #0284c7; border-color: #0369a1;" title="Open in Telegram Web directly inside this browser">
+                                            <span>🌐 Open in Telegram Web</span>
                                         </a>
                                         <button type="button" id="copy-pin-btn" class="btn btn-secondary btn-sm" data-pin="{{ telegram_pin }}">
                                             <span>📋 Copy PIN</span>
                                         </button>
                                         <button type="button" id="refresh-pin-btn" class="btn btn-secondary btn-sm" title="Generate a new PIN">
                                             <span>🔄 Refresh PIN</span>
-                                        </button>
-                                        <button type="button" id="copy-tg-cmd-btn" class="btn btn-secondary btn-sm" data-cmd="/link {{ current_user.api_token }}" title="Copy command to link bot">
-                                            <span>📋 Copy /link</span>
                                         </button>
                                     </div>
                                     <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">

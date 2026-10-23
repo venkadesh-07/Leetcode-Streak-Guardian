@@ -70,8 +70,12 @@ def settings():
     telegram_pin = current_user.get_or_create_telegram_pin()
     db.session.commit()
 
+    import urllib.parse
     bot_username = get_telegram_bot_username()
     telegram_connect_url = f"https://t.me/{bot_username}?start={token}"
+    tg_uri = urllib.parse.quote(f"tg://resolve?domain={bot_username}&start={token}")
+    telegram_web_url = f"https://web.telegram.org/k/#?tgaddr={tg_uri}"
+
     linked_accounts_count = (
         User.query.filter_by(telegram_chat_id=current_user.telegram_chat_id).count()
         if current_user.telegram_chat_id
@@ -82,6 +86,7 @@ def settings():
         "settings.html",
         form=form,
         telegram_connect_url=telegram_connect_url,
+        telegram_web_url=telegram_web_url,
         bot_username=bot_username,
         telegram_pin=telegram_pin,
         linked_accounts_count=linked_accounts_count,
