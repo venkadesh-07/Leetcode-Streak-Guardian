@@ -291,10 +291,10 @@ def _notify_rescue_event(user, success: bool, problem_slug: str, detail: dict):
         )
 
     # 1. Telegram
-    if getattr(user, "notify_telegram", False) and user.telegram_chat_id:
-        bot_token = get_telegram_bot_token()
-        if bot_token:
-            try:
+    try:
+        if getattr(user, "notify_telegram", False) and user.telegram_chat_id:
+            bot_token = get_telegram_bot_token()
+            if bot_token:
                 requests.post(
                     f"https://api.telegram.org/bot{bot_token}/sendMessage",
                     json={
@@ -304,14 +304,14 @@ def _notify_rescue_event(user, success: bool, problem_slug: str, detail: dict):
                     },
                     timeout=8,
                 )
-            except Exception as exc:
-                logger.warning(f"Failed to send Telegram rescue notice: {exc}")
+    except Exception as exc:
+        logger.warning(f"Failed to send Telegram rescue notice: {exc}")
 
     # 2. Email
-    target_email = getattr(user, "reminder_email", None) or getattr(user, "email", None)
-    if getattr(user, "notify_email", False) and target_email:
-        try:
-            from app.services.email_service import _send_email
-            _send_email(target_email, email_subj, email_body)
-        except Exception as exc:
-            logger.warning(f"Failed to send email rescue notice: {exc}")
+    try:
+        target_email = getattr(user, "reminder_email", None) or getattr(user, "email", None)
+        if getattr(user, "notify_email", False) and target_email:
+            from app.services.email_service import send_email
+            send_email(target_email, email_subj, email_body)
+    except Exception as exc:
+        logger.warning(f"Failed to send email rescue notice: {exc}")

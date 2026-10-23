@@ -242,15 +242,18 @@ def test_auto_rescue():
         flash("Please enter and save your LEETCODE_SESSION and csrftoken cookies first before testing auto-rescue.", "error")
         return redirect(url_for("main.settings"))
 
-    from app.services.rescue_service import execute_auto_rescue
-    res = execute_auto_rescue(current_user, force=True)
+    try:
+        from app.services.rescue_service import execute_auto_rescue
+        res = execute_auto_rescue(current_user, force=True)
 
-    if res.get("success"):
-        sub_id = res.get("submission_id", "N/A")
-        status = res.get("status", "Accepted")
-        flash(f"🎉 Auto-Rescue Test SUCCESS! LeetCode accepted your submission (ID: {sub_id}, Status: {status}). Your streak is protected!", "success")
-    else:
-        err = res.get("error", "Unknown error")
-        flash(f"❌ Auto-Rescue Test Failed: {err}", "error")
+        if res.get("success"):
+            sub_id = res.get("submission_id", "N/A")
+            status = res.get("status", "Accepted")
+            flash(f"🎉 Auto-Rescue Test SUCCESS! LeetCode accepted your submission (ID: {sub_id}, Status: {status}). Your streak is protected!", "success")
+        else:
+            err = res.get("error", "Unknown error")
+            flash(f"❌ Auto-Rescue Test Failed: {err}", "error")
+    except Exception as exc:
+        flash(f"❌ Auto-Rescue Test encountered an error: {exc}", "error")
 
     return redirect(url_for("main.settings"))
