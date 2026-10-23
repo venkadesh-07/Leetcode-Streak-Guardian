@@ -192,26 +192,75 @@ def send_email(to_email, subject, body_text, body_html=None):
         }
 
 
+from datetime import datetime, timezone
+
+
+def get_time_remaining_until_reset():
+    """
+    Calculate hours and minutes remaining until daily LeetCode reset (23:59:59 UTC).
+    Returns urgency information for dynamic time-based alerts.
+    """
+    now_utc = datetime.now(timezone.utc)
+    reset_utc = now_utc.replace(hour=23, minute=59, second=59, microsecond=0)
+    diff_seconds = max(0, int((reset_utc - now_utc).total_seconds()))
+    hours = diff_seconds // 3600
+    minutes = (diff_seconds % 3600) // 60
+
+    if hours <= 1:
+        urgency_level = "critical"
+        time_display = f"{minutes}m" if hours == 0 else f"{hours}h {minutes}m"
+        urgency_badge = f"🚨 CRITICAL: Only {time_display} Remaining Before Reset!"
+        badge_style = "background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.7);"
+        subject_tag = f"🚨 [CRITICAL: {time_display} LEFT]"
+    elif hours <= 4:
+        urgency_level = "urgent"
+        time_display = f"{hours}h {minutes}m"
+        urgency_badge = f"⏰ URGENT: Only {time_display} Left Before 23:59 UTC!"
+        badge_style = "background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.7);"
+        subject_tag = f"⏰ [URGENT: {time_display} LEFT]"
+    else:
+        urgency_level = "warning"
+        time_display = f"{hours} hours"
+        urgency_badge = f"⏳ {hours} Hours Remaining Before Reset (23:59 UTC)"
+        badge_style = "background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);"
+        subject_tag = f"🔥 [{hours}h left]"
+
+    return {
+        "hours": hours,
+        "minutes": minutes,
+        "time_display": time_display,
+        "urgency_level": urgency_level,
+        "urgency_badge": urgency_badge,
+        "badge_style": badge_style,
+        "subject_tag": subject_tag,
+    }
+
+
 def send_streak_reminder(user, submissions_today, current_streak, date_utc):
     """
-    Send a streak risk notification email to the user's configured reminder email.
+    Send a streak risk notification email to the user's configured reminder email
+    with dynamic time-remaining urgency.
     """
     recipient = user.reminder_email
     if not recipient:
         raise ValueError("User does not have a configured reminder email.")
 
     base_url = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5001").rstrip("/")
+    time_info = get_time_remaining_until_reset()
 
-    subject = f"🔥 Streak Alert: Keep your {current_streak}-day LeetCode streak alive!"
+    subject = f"{time_info['subject_tag']} Keep your {current_streak}-day LeetCode streak alive!"
 
     body_text = f"""Hello,
 
 This is your LeetCode Streak Guardian alert for {date_utc} (UTC).
 
-You currently have a {current_streak}-day streak, but no submissions have been recorded yet today for your account ({user.leetcode_username}).
+⏰ TIME REMAINING: Only {time_info['time_display']} left before the daily reset at 23:59 UTC!
+
+You currently hold a {current_streak}-day streak, but no submissions have been recorded yet today for your account ({user.leetcode_username}).
 
 Solve at least one problem before 23:59 UTC to protect your streak!
 
+Solve Now: https://leetcode.com/problemset/
 Your Dashboard: {base_url}/dashboard
 
 Stay consistent. Keep coding!
@@ -226,7 +275,9 @@ LeetCode Streak Guardian
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; margin: 0; }}
         .card {{ background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; max-width: 540px; margin: 20px auto; }}
         h1 {{ color: #f59e0b; font-size: 24px; margin-top: 0; }}
-        .badge {{ background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 8px 12px; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 16px; }}
+        .badge {{ {time_info['badge_style']} padding: 8px 14px; border-radius: 6px; font-weight: bold; display: inline-block; margin-bottom: 16px; font-size: 14px; }}
+        .urgency-box {{ background: rgba(15, 23, 42, 0.7); border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; margin: 16px 0; }}
+        .countdown {{ font-size: 18px; font-weight: bold; color: #f59e0b; }}
         .cta {{ display: inline-block; background: #f59e0b; color: #0f172a; font-weight: bold; padding: 12px 20px; border-radius: 6px; text-decoration: none; margin-top: 16px; }}
         footer {{ color: #64748b; font-size: 12px; margin-top: 24px; text-align: center; }}
     </style>
@@ -234,12 +285,17 @@ LeetCode Streak Guardian
 <body>
     <div class="card">
         <h1>LeetCode Streak Guardian</h1>
-        <div class="badge">⚠️ Streak At Risk for {date_utc} (UTC)</div>
+        <div class="badge">{time_info['urgency_badge']}</div>
+
+        <div class="urgency-box">
+            ⏰ <strong>Time Remaining:</strong> <span class="countdown">{time_info['time_display']}</span> left before reset at <strong>23:59 UTC</strong>!
+        </div>
+
         <p>Hello,</p>
         <p>You currently hold a <strong>{current_streak}-day coding streak</strong> on LeetCode (<strong>{user.leetcode_username}</strong>), but no submissions have been detected yet today.</p>
-        <p>Make sure to solve and submit at least one problem before the daily reset at <strong>23:59 UTC</strong> to keep your streak intact!</p>
+        <p>Solve and submit at least one problem before the daily reset to keep your streak intact!</p>
         <a href="https://leetcode.com/problemset/" class="cta">Solve a Problem Now</a>
-        <p style="margin-top: 12px;"><a href="{base_url}/dashboard" style="color: #94a3b8; font-size: 13px;">View Your Dashboard</a></p>
+        <p style="margin-top: 14px;"><a href="{base_url}/dashboard" style="color: #94a3b8; font-size: 13px;">View Your Dashboard</a></p>
         <footer>Stay consistent. Keep coding! &bull; LeetCode Streak Guardian</footer>
     </div>
 </body>

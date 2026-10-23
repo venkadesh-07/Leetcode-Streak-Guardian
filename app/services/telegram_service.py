@@ -61,10 +61,26 @@ def send_telegram_streak_reminder(
     safe_submissions = html.escape(str(submissions_today))
     safe_date = html.escape(str(date_utc))
 
+    # Calculate time remaining until 23:59:59 UTC reset
+    now_utc = datetime.now(timezone.utc)
+    reset_utc = now_utc.replace(hour=23, minute=59, second=59, microsecond=0)
+    diff_seconds = max(0, int((reset_utc - now_utc).total_seconds()))
+    hours = diff_seconds // 3600
+    minutes = (diff_seconds % 3600) // 60
+    time_display = f"{minutes}m" if hours == 0 else f"{hours}h {minutes}m"
+
+    if hours <= 1:
+        urgency_line = f"🚨 <b>CRITICAL:</b> Only <b>{time_display}</b> left before reset!"
+    elif hours <= 4:
+        urgency_line = f"⏰ <b>URGENT:</b> Only <b>{time_display}</b> left before reset!"
+    else:
+        urgency_line = f"⏳ <b>Time Remaining:</b> <b>{time_display}</b> before 23:59 UTC reset"
+
     message_text = (
         f"🔥 <b>LeetCode Streak Alert!</b>\n\n"
         f"Hey <b>{safe_username}</b>, you haven't solved any problems yet today!\n\n"
         f"📊 <b>Current Streak:</b> <code>{safe_streak} days</code>\n"
+        f"{urgency_line}\n"
         f"⚡ <b>Today's Submissions:</b> <code>{safe_submissions}</code>\n"
         f"📅 <b>Date (UTC):</b> <code>{safe_date}</code>\n\n"
         f"⚠️ Solve at least 1 problem before <b>23:59 UTC</b> to keep your streak alive!\n\n"
