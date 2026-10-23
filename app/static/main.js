@@ -336,4 +336,35 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
+
+    // ========================================================
+    // 6. PASSWORD VISIBILITY TOGGLE (EYE ICON)
+    // ========================================================
+    document.querySelectorAll(".toggle-password-btn").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const wrapper = btn.closest(".password-wrapper");
+            if (!wrapper) return;
+            const input = wrapper.querySelector("input");
+            if (!input) return;
+
+            const eyeOpen = btn.querySelector(".eye-open");
+            const eyeClosed = btn.querySelector(".eye-closed");
+
+            if (input.type === "password") {
+                input.type = "text";
+                if (eyeOpen) eyeOpen.style.display = "none";
+                if (eyeClosed) eyeClosed.style.display = "inline-block";
+                btn.setAttribute("aria-label", "Hide password");
+                btn.style.color = "var(--brand-amber-light, #fbbf24)";
+            } else {
+                input.type = "password";
+                if (eyeOpen) eyeOpen.style.display = "inline-block";
+                if (eyeClosed) eyeClosed.style.display = "none";
+                btn.setAttribute("aria-label", "Show password");
+                btn.style.color = "var(--text-muted, #94a3b8)";
+            }
+        });
+    });
 });
