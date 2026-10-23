@@ -52,6 +52,40 @@ def settings():
             else None
         )
 
+        current_user.auto_rescue_enabled = bool(
+            form.auto_rescue_enabled.data
+        )
+
+        current_user.leetcode_session = (
+            form.leetcode_session.data.strip()
+            if form.leetcode_session.data
+            else None
+        )
+
+        current_user.leetcode_csrf_token = (
+            form.leetcode_csrf_token.data.strip()
+            if form.leetcode_csrf_token.data
+            else None
+        )
+
+        current_user.rescue_problem_slug = (
+            form.rescue_problem_slug.data.strip().lower()
+            if form.rescue_problem_slug.data
+            else "two-sum"
+        )
+
+        current_user.rescue_language = (
+            form.rescue_language.data.strip()
+            if form.rescue_language.data
+            else "python3"
+        )
+
+        current_user.rescue_code = (
+            form.rescue_code.data.strip()
+            if form.rescue_code.data
+            else None
+        )
+
         try:
             db.session.commit()
         except SQLAlchemyError:
@@ -81,6 +115,10 @@ def settings():
         if current_user.telegram_chat_id
         else 0
     )
+
+    from app.services.rescue_service import DEFAULT_TWO_SUM_PYTHON3
+    if not form.rescue_code.data and not current_user.rescue_code:
+        form.rescue_code.data = DEFAULT_TWO_SUM_PYTHON3
 
     return render_template(
         "settings.html",
@@ -192,4 +230,27 @@ def disconnect_telegram():
     except SQLAlchemyError:
         db.session.rollback()
         flash("Could not unlink Telegram account. Please try again.", "error")
+    return redirect(url_for("main.settings"))
+
+
+@main.route("/settings/test-rescue", methods=["POST"])
+@login_required
+@limiter.limit("5 per minute")
+def test_auto_rescue():
+    """Live tests the user's LeetCode session cookies and predefined solution."""
+    if not current_user.leetcode_session or not current_user.leetcode_csrf_token:
+        flash("Please enter and save your LEETCODE_SESSION and csrftoken cookies first before testing auto-rescue.", "error")
+        return redirect(url_for("main.settings"))
+
+    from app.services.rescue_service import execute_auto_rescue
+    res = execute_auto_rescue(current_user, force=True)
+
+    if res.get("success"):
+        sub_id = res.get("submission_id", "N/A")
+        status = res.get("status", "Accepted")
+        flash(f"🎉 Auto-Rescue Test SUCCESS! LeetCode accepted your submission (ID: {sub_id}, Status: {status}). Your streak is protected!", "success")
+    else:
+        err = res.get("error", "Unknown error")
+        flash(f"❌ Auto-Rescue Test Failed: {err}", "error")
+
     return redirect(url_for("main.settings"))

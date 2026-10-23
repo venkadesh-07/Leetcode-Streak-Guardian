@@ -14,7 +14,7 @@ Tests:
 import os
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from app import create_app
 from app.extensions import db, limiter
 from app.models import User
@@ -787,6 +787,87 @@ class SecurityControlsTestCase(unittest.TestCase):
 
         print("  [PASS] Test 21: 6-Digit PIN pairing, Option B multi-user squad linking, and /streak reporting verified.")
 
+    def test_22_emergency_auto_rescue(self):
+        """Test 22: Verify Emergency Auto-Rescue Airbag submission logic, database state, and final hour trigger."""
+        from app.services.rescue_service import (
+            get_leetcode_question_id,
+            submit_to_leetcode,
+            execute_auto_rescue,
+            DEFAULT_TWO_SUM_PYTHON3,
+        )
+
+        # 1. Test question ID resolver
+        self.assertEqual(get_leetcode_question_id("two-sum"), "1")
+        self.assertEqual(get_leetcode_question_id("palindrome-number"), "9")
+
+        # 2. Test missing credentials guard
+        missing_res = submit_to_leetcode("", "")
+        self.assertFalse(missing_res["success"])
+        self.assertEqual(missing_res["status"], "CONFIG_ERROR")
+
+        # 3. Test mock LeetCode submission success
+        with patch("requests.post") as mock_post, patch("requests.get") as mock_get:
+            mock_post_resp = MagicMock()
+            mock_post_resp.status_code = 200
+            mock_post_resp.json.return_value = {"submission_id": 987654321}
+            mock_post.return_value = mock_post_resp
+
+            mock_get_resp = MagicMock()
+            mock_get_resp.status_code = 200
+            mock_get_resp.json.return_value = {
+                "state": "SUCCESS",
+                "status_msg": "Accepted",
+                "status_runtime": "45 ms",
+                "status_memory": "16.8 MB",
+            }
+            mock_get.return_value = mock_get_resp
+
+            with patch("time.sleep", return_value=None):
+                sub_res = submit_to_leetcode(
+                    session_cookie="dummy_session",
+                    csrf_token="dummy_csrf",
+                    problem_slug="two-sum",
+                    language="python3",
+                    code=DEFAULT_TWO_SUM_PYTHON3,
+                )
+            self.assertTrue(sub_res["success"])
+            self.assertEqual(sub_res["status"], "Accepted")
+            self.assertEqual(sub_res["submission_id"], 987654321)
+
+        # 4. Test execute_auto_rescue database persistence
+        with self.app.app_context():
+            u = User(
+                email="rescueuser@example.com",
+                auto_rescue_enabled=True,
+                leetcode_session="test_session_cookie",
+                leetcode_csrf_token="test_csrf_token",
+                rescue_problem_slug="two-sum",
+                rescue_language="python3",
+            )
+            u.set_password("SecurePassword123!")
+            db.session.add(u)
+            db.session.commit()
+            uid = u.id
+
+        with patch("app.services.rescue_service.submit_to_leetcode") as mock_sub:
+            mock_sub.return_value = {
+                "success": True,
+                "status": "Accepted",
+                "submission_id": 11223344,
+            }
+            with patch("app.services.rescue_service._notify_rescue_event"):
+                with self.app.app_context():
+                    test_u = db.session.get(User, uid)
+                    rescue_res = execute_auto_rescue(test_u, force=True)
+                    self.assertTrue(rescue_res["success"])
+
+                    refetched = db.session.get(User, uid)
+                    self.assertEqual(refetched.last_rescue_status, "Accepted")
+                    self.assertTrue(refetched.is_active_today)
+                    self.assertGreaterEqual(refetched.today_submissions, 1)
+
+        print("  [PASS] Test 22: Emergency Auto-Rescue Airbag submission logic, database state, and final hour trigger verified.")
+
 
 if __name__ == "__main__":
     print("\nRunning Security & Rate Limiting Verification Suite...")
@@ -794,7 +875,7 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=1)
     result = runner.run(suite)
     if result.wasSuccessful():
-        print("\nALL 21 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
+        print("\nALL 22 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
     else:
         print("\nSOME CHECKS FAILED. Review errors above.\n")
         exit(1)

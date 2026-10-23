@@ -6,8 +6,10 @@ from wtforms import (
     BooleanField,
     EmailField,
     PasswordField,
+    SelectField,
     StringField,
     SubmitField,
+    TextAreaField,
 )
 from wtforms.validators import (
     DataRequired,
@@ -131,6 +133,43 @@ class SettingsForm(FlaskForm):
             Optional(),
             Length(max=64),
         ],
+    )
+
+    # Automated Emergency Streak Rescue
+    auto_rescue_enabled = BooleanField(
+        "Enable Automated Emergency Streak Rescue"
+    )
+
+    leetcode_session = StringField(
+        "LEETCODE_SESSION Cookie",
+        validators=[Optional()],
+    )
+
+    leetcode_csrf_token = StringField(
+        "csrftoken Cookie",
+        validators=[Optional(), Length(max=255)],
+    )
+
+    rescue_problem_slug = StringField(
+        "Backup Problem Slug",
+        default="two-sum",
+        validators=[Optional(), Length(max=100)],
+    )
+
+    rescue_language = SelectField(
+        "Submission Language",
+        choices=[
+            ("python3", "Python 3"),
+            ("cpp", "C++"),
+            ("java", "Java"),
+            ("javascript", "JavaScript"),
+        ],
+        default="python3",
+    )
+
+    rescue_code = TextAreaField(
+        "Backup Solution Code",
+        validators=[Optional()],
     )
 
     submit = SubmitField("Save settings")

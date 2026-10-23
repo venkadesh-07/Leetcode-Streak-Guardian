@@ -231,6 +231,91 @@
                         </details>
                     </div>
 
+                    <!-- Channel 3: Emergency Auto-Rescue Airbag -->
+                    <div style="background: rgba(239, 68, 68, 0.04); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px;">
+                        <div class="checkbox-group" style="margin-bottom: 12px;">
+                            <div class="checkbox-group-content">
+                                {{ form.auto_rescue_enabled() }}
+                                <label for="auto_rescue_enabled" style="font-weight: 700; color: #f87171; display: inline-flex; align-items: center; gap: 8px;">
+                                    <span>🚨 Automated Emergency Streak Rescue (Airbag)</span>
+                                    <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 11px; padding: 2px 8px; border-radius: 9999px;">1hr Before Reset</span>
+                                </label>
+                            </div>
+                            <div class="toggle-switch-track">
+                                <div class="toggle-switch-thumb"></div>
+                            </div>
+                        </div>
+
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+                            If you haven't completed any problem by <strong>23:00 UTC (1 hour before reset)</strong>, the Guardian will automatically submit your predefined backup solution to LeetCode, safeguarding your streak from breaking.
+                        </p>
+
+                        <!-- Cookie Inputs Grid -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                {{ form.leetcode_session.label }}
+                                <div class="password-wrapper" style="position: relative; display: flex; align-items: center;">
+                                    {{ form.leetcode_session(
+                                        autocomplete="off",
+                                        type="password",
+                                        placeholder="Paste LEETCODE_SESSION...",
+                                        style="padding-right: 42px; width: 100%; font-family: monospace; font-size: 12px;"
+                                    ) }}
+                                    <button type="button" class="toggle-password-btn" aria-label="Toggle LEETCODE_SESSION visibility">
+                                        <svg class="eye-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                        <svg class="eye-closed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                            <line x1="1" y1="1" x2="23" y2="23"></line>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <small class="form-help">DevTools (F12) &rarr; Application &rarr; Cookies &rarr; <code>leetcode.com</code> &rarr; <code>LEETCODE_SESSION</code>.</small>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 0;">
+                                {{ form.leetcode_csrf_token.label }}
+                                {{ form.leetcode_csrf_token(
+                                    autocomplete="off",
+                                    placeholder="Paste csrftoken...",
+                                    style="width: 100%; font-family: monospace; font-size: 12px;"
+                                ) }}
+                                <small class="form-help">DevTools (F12) &rarr; Application &rarr; Cookies &rarr; <code>leetcode.com</code> &rarr; <code>csrftoken</code>.</small>
+                            </div>
+                        </div>
+
+                        <!-- Problem Config Grid -->
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                {{ form.rescue_problem_slug.label }}
+                                {{ form.rescue_problem_slug(placeholder="two-sum") }}
+                                <small class="form-help">Default: <code>two-sum</code> (Problem #1). Must be an accepted problem you've solved.</small>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                {{ form.rescue_language.label }}
+                                {{ form.rescue_language() }}
+                            </div>
+                        </div>
+
+                        <!-- Code Editor Field -->
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            {{ form.rescue_code.label }}
+                            {{ form.rescue_code(
+                                rows=6,
+                                style="font-family: monospace; font-size: 12px; background: rgba(0, 0, 0, 0.35); color: #34d399; line-height: 1.4; tab-size: 4;"
+                            ) }}
+                            <small class="form-help">Pre-configured with working Python 3 Two Sum solution. Modify if desired.</small>
+                        </div>
+
+                        {% if current_user.last_rescue_date_utc %}
+                            <div style="padding: 8px 12px; background: rgba(255, 255, 255, 0.04); border-radius: var(--radius-sm); font-size: 12px; color: var(--text-muted);">
+                                Last Rescue Run: <strong>{{ current_user.last_rescue_date_utc }}</strong> &bull; Status: <code>{{ current_user.last_rescue_status or 'N/A' }}</code>
+                            </div>
+                        {% endif %}
+                    </div>
+
                 <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                     {{ form.submit(class="btn btn-primary", value="Save Settings", **{"data-loading-text": "Saving Settings..."}) }}
                 </div>
@@ -263,6 +348,17 @@
                         <form method="POST" action="{{ url_for('main.send_test_telegram') }}" style="display: inline;">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-telegram btn-sm" data-loading-text="Sending to Telegram...">Send Test Telegram</button>
+                        </form>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
+                        <div>
+                            <strong style="font-size: 13px; color: #f87171;">🧪 Test Emergency Auto-Rescue</strong>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0;">Submits your backup problem directly to LeetCode to verify your session cookies and code.</p>
+                        </div>
+                        <form method="POST" action="{{ url_for('main.test_auto_rescue') }}" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger btn-sm" data-loading-text="Submitting to LeetCode...">Test Auto-Rescue Now</button>
                         </form>
                     </div>
                 </div>

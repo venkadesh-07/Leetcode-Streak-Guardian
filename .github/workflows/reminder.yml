@@ -5,6 +5,8 @@ on:
     # Runs every 4 hours at :15 past the hour to match REMINDER_INTERVAL_SECONDS (4h) cooldown
     # Schedule: 00:15, 04:15, 08:15, 12:15, 16:15, 20:15 UTC (6 runs/day)
     - cron: '15 */4 * * *'
+    # Emergency Auto-Rescue Run: 23:05 UTC (55 minutes before midnight UTC reset)
+    - cron: '5 23 * * *'
   workflow_dispatch:
     inputs:
       force:

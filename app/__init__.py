@@ -139,9 +139,31 @@ def create_app(test_config=None):
         except (TypeError, ValueError):
             return None
 
-    if test_config or "sqlite" in str(app.config.get("SQLALCHEMY_DATABASE_URI", "")):
-        with app.app_context():
+    with app.app_context():
+        if test_config or "sqlite" in str(app.config.get("SQLALCHEMY_DATABASE_URI", "")):
             db.create_all()
+        else:
+            try:
+                from sqlalchemy import text
+                columns = [
+                    ("auto_rescue_enabled", "BOOLEAN DEFAULT FALSE NOT NULL"),
+                    ("leetcode_session", "TEXT"),
+                    ("leetcode_csrf_token", "VARCHAR(255)"),
+                    ("rescue_problem_slug", "VARCHAR(100) DEFAULT 'two-sum'"),
+                    ("rescue_language", "VARCHAR(50) DEFAULT 'python3'"),
+                    ("rescue_code", "TEXT"),
+                    ("last_rescue_date_utc", "VARCHAR(10)"),
+                    ("last_rescue_status", "VARCHAR(100)"),
+                ]
+                with db.engine.connect() as conn:
+                    for col_name, col_type in columns:
+                        try:
+                            conn.execute(text(f'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS {col_name} {col_type};'))
+                            conn.commit()
+                        except Exception:
+                            pass
+            except Exception:
+                pass
 
 
     @app.cli.command("check-reminders")
@@ -156,6 +178,7 @@ def create_app(test_config=None):
         click.echo(f"Checked Date (UTC): {stats['checked_date_utc']}")
         click.echo(f"Eligible Users: {stats['eligible_users']}")
         click.echo(f"Streaks Protected: {stats['already_protected']}")
+        click.echo(f"Auto-Rescued Streaks: {stats.get('auto_rescued', 0)}")
         click.echo(f"Reminders Sent: {stats['reminders_sent']}")
         click.echo(f"Interval Cooldown (Skipped): {stats.get('interval_cooldown', 0)}")
         if stats["errors"]:

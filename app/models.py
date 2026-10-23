@@ -101,6 +101,41 @@ class User(UserMixin, db.Model):
         db.BigInteger,
         nullable=True,
     )
+    auto_rescue_enabled = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+    )
+    leetcode_session = db.Column(
+        db.Text,
+        nullable=True,
+    )
+    leetcode_csrf_token = db.Column(
+        db.String(255),
+        nullable=True,
+    )
+    rescue_problem_slug = db.Column(
+        db.String(100),
+        nullable=False,
+        default="two-sum",
+    )
+    rescue_language = db.Column(
+        db.String(50),
+        nullable=False,
+        default="python3",
+    )
+    rescue_code = db.Column(
+        db.Text,
+        nullable=True,
+    )
+    last_rescue_date_utc = db.Column(
+        db.String(10),
+        nullable=True,
+    )
+    last_rescue_status = db.Column(
+        db.String(100),
+        nullable=True,
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
