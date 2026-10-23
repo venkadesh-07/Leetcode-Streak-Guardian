@@ -13,6 +13,11 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+def get_telegram_bot_token() -> str:
+    """Retrieve the Telegram bot API token from environment."""
+    return os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+
+
 def validate_telegram_chat_id(chat_id: str) -> bool:
     """Validate that chat_id is numeric or signed numeric (private user or group)."""
     if not isinstance(chat_id, str):

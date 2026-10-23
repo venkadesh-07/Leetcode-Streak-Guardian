@@ -256,62 +256,55 @@ def _notify_rescue_event(user, success: bool, problem_slug: str, detail: dict):
     """
     Sends an immediate high-priority alert to all connected channels (Telegram / Email)
     documenting the result of the emergency auto-rescue run.
+    Guarded to never raise exceptions or disrupt caller.
     """
-    from app.services.telegram_service import get_telegram_bot_token
-
-    if success:
-        sub_id = detail.get("submission_id", "N/A")
-        tg_text = (
-            f"🚨 *STREAK AUTO-RESCUE SUCCESS!*\n\n"
-            f"Your backup problem (*{problem_slug}*) was automatically submitted and **Accepted** by LeetCode (Submission: `{sub_id}`).\n\n"
-            f"🎉 *Your streak is 100% safe for today!* No streak freeze or reset needed."
-        )
-        email_subj = f"🚨 [Streak Rescued] Your backup solution for '{problem_slug}' was Accepted!"
-        email_body = (
-            f"Emergency Streak Airbag Activated:\n\n"
-            f"We noticed no problems were submitted today. Your predefined solution for '{problem_slug}' "
-            f"was automatically submitted to LeetCode and received an ACCEPTED verdict!\n\n"
-            f"Submission ID: {sub_id}\nStatus: {detail.get('status', 'Accepted')}\n"
-            f"Your daily streak remains protected."
-        )
-    else:
-        err_msg = detail.get("error", "Submission error")
-        tg_text = (
-            f"⚠️ *STREAK AUTO-RESCUE FAILED!*\n\n"
-            f"The Guardian tried to auto-submit your backup problem (*{problem_slug}*), but LeetCode returned an error:\n"
-            f"`{err_msg}`\n\n"
-            f"⏰ *Action Required:* Please solve and submit a problem manually on LeetCode immediately before UTC midnight!"
-        )
-        email_subj = f"⚠️ [ACTION REQUIRED] Auto-Rescue Failed for '{problem_slug}'"
-        email_body = (
-            f"Emergency Streak Airbag Warning:\n\n"
-            f"We attempted to submit your backup solution for '{problem_slug}', but the submission failed:\n\n"
-            f"Reason: {err_msg}\n\n"
-            f"Please log into LeetCode and solve today's problem manually before 23:59 UTC to keep your streak alive!"
-        )
-
-    # 1. Telegram
     try:
+        if success:
+            sub_id = detail.get("submission_id", "N/A")
+            tg_text = (
+                f"🚨 <b>STREAK AUTO-RESCUE SUCCESS!</b>\n\n"
+                f"Your backup problem (<b>{problem_slug}</b>) was automatically submitted and <b>Accepted</b> by LeetCode (Submission: <code>{sub_id}</code>).\n\n"
+                f"🎉 <b>Your streak is 100% safe for today!</b> No streak freeze or reset needed."
+            )
+            email_subj = f"🚨 [Streak Rescued] Your backup solution for '{problem_slug}' was Accepted!"
+            email_body = (
+                f"Emergency Streak Airbag Activated:\n\n"
+                f"We noticed no problems were submitted today. Your predefined solution for '{problem_slug}' "
+                f"was automatically submitted to LeetCode and received an ACCEPTED verdict!\n\n"
+                f"Submission ID: {sub_id}\nStatus: {detail.get('status', 'Accepted')}\n"
+                f"Your daily streak remains protected."
+            )
+        else:
+            err_msg = detail.get("error", "Submission error")
+            tg_text = (
+                f"⚠️ <b>STREAK AUTO-RESCUE FAILED!</b>\n\n"
+                f"The Guardian tried to auto-submit your backup problem (<b>{problem_slug}</b>), but LeetCode returned an error:\n"
+                f"<code>{err_msg}</code>\n\n"
+                f"⏰ <b>Action Required:</b> Please solve and submit a problem manually on LeetCode immediately before UTC midnight!"
+            )
+            email_subj = f"⚠️ [ACTION REQUIRED] Auto-Rescue Failed for '{problem_slug}'"
+            email_body = (
+                f"Emergency Streak Airbag Warning:\n\n"
+                f"We attempted to submit your backup solution for '{problem_slug}', but the submission failed:\n\n"
+                f"Reason: {err_msg}\n\n"
+                f"Please log into LeetCode and solve today's problem manually before 23:59 UTC to keep your streak alive!"
+            )
+
+        # 1. Telegram
         if getattr(user, "notify_telegram", False) and user.telegram_chat_id:
-            bot_token = get_telegram_bot_token()
-            if bot_token:
-                requests.post(
-                    f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                    json={
-                        "chat_id": user.telegram_chat_id,
-                        "text": tg_text,
-                        "parse_mode": "Markdown",
-                    },
-                    timeout=8,
-                )
-    except Exception as exc:
-        logger.warning(f"Failed to send Telegram rescue notice: {exc}")
+            try:
+                from app.services.telegram_service import send_telegram_message
+                send_telegram_message(str(user.telegram_chat_id), tg_text, parse_mode="HTML")
+            except Exception as tg_err:
+                logger.warning(f"Failed to send Telegram rescue notice: {tg_err}")
 
-    # 2. Email
-    try:
+        # 2. Email
         target_email = getattr(user, "reminder_email", None) or getattr(user, "email", None)
         if getattr(user, "notify_email", False) and target_email:
-            from app.services.email_service import send_email
-            send_email(target_email, email_subj, email_body)
+            try:
+                from app.services.email_service import send_email
+                send_email(target_email, email_subj, email_body)
+            except Exception as mail_err:
+                logger.warning(f"Failed to send email rescue notice: {mail_err}")
     except Exception as exc:
-        logger.warning(f"Failed to send email rescue notice: {exc}")
+        logger.warning(f"Unexpected error in _notify_rescue_event: {exc}")
