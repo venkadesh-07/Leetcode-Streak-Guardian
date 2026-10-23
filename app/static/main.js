@@ -305,4 +305,21 @@ document.addEventListener("DOMContentLoaded", function () {
         group.appendChild(ripple);
         setTimeout(function () { ripple.remove(); }, 600);
     });
+
+    // ========================================================
+    // 5. DISCONNECT TELEGRAM ACTION HANDLER
+    // ========================================================
+    const disconnectTgBtn = document.getElementById("disconnect-telegram-btn");
+    const disconnectTgForm = document.getElementById("disconnect-telegram-form");
+    if (disconnectTgBtn && disconnectTgForm) {
+        disconnectTgBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (window.confirm("Are you sure you want to unlink your Telegram account?")) {
+                disconnectTgBtn.disabled = true;
+                disconnectTgBtn.innerHTML = '<span class="btn-spinner"></span> Unlinking...';
+                disconnectTgForm.submit();
+            }
+        });
+    }
 });

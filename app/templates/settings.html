@@ -117,7 +117,7 @@
                                 </div>
 
                                 {% if current_user.telegram_chat_id %}
-                                    <button type="submit" form="disconnect-telegram-form" class="btn btn-danger btn-sm" data-loading-text="Unlinking...">
+                                    <button type="button" id="disconnect-telegram-btn" class="btn btn-danger btn-sm" data-loading-text="Unlinking...">
                                         Disconnect Telegram
                                     </button>
                                 {% endif %}
