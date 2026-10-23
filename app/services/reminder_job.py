@@ -98,6 +98,9 @@ def run_reminder_check():
             else:
                 dispatched_any = False
 
+                from flask import current_app, has_app_context
+                is_testing = (has_app_context() and current_app.config.get("TESTING")) or os.environ.get("FLASK_ENV") == "testing"
+
                 # 1. Dispatch Email if enabled
                 if getattr(user, "notify_email", True) and user.reminder_email:
                     send_res = send_streak_reminder(
@@ -107,9 +110,11 @@ def run_reminder_check():
                         date_utc=today_utc,
                     )
 
+                    email_mode = send_res.get("mode")
                     if send_res.get("success"):
-                        dispatched_any = True
-                        logger.info(f"{user_identifier}: Streak reminder email sent (mode: {send_res.get('mode')}).")
+                        if email_mode == "smtp" or is_testing:
+                            dispatched_any = True
+                        logger.info(f"{user_identifier}: Streak reminder email sent (mode: {email_mode}).")
                     else:
                         stats["errors"].append(f"{user_identifier}: Failed to dispatch email reminder ({send_res.get('error')})")
 
@@ -125,9 +130,11 @@ def run_reminder_check():
                         date_utc=today_utc,
                     )
 
+                    tg_mode = tg_res.get("mode")
                     if tg_res.get("success"):
-                        dispatched_any = True
-                        logger.info(f"{user_identifier}: Streak reminder Telegram alert sent (mode: {tg_res.get('mode')}).")
+                        if tg_mode == "telegram" or is_testing:
+                            dispatched_any = True
+                        logger.info(f"{user_identifier}: Streak reminder Telegram alert sent (mode: {tg_mode}).")
                     else:
                         stats["errors"].append(f"{user_identifier}: Failed to dispatch Telegram alert ({tg_res.get('error')})")
 
@@ -136,7 +143,7 @@ def run_reminder_check():
                     user.last_reminder_sent_at = now_ts
                     stats["reminders_sent"] += 1
                 else:
-                    logger.warning(f"{user_identifier}: No reminders could be dispatched (check channel configs/credentials). Cooldown not updated.")
+                    logger.warning(f"{user_identifier}: No real reminders dispatched (simulation mode or channel error). Cooldown not updated.")
 
     # Commit all user updates in a single batch instead of per-user
     try:

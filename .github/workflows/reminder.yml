@@ -48,12 +48,22 @@ jobs:
             echo "Go to Settings -> Secrets and variables -> Actions -> New repository secret"
             echo "Name: DATABASE_URL"
             exit 1
+          else
+            echo "✅ DATABASE_URL is configured."
+          fi
+
+          if [ -z "$SMTP_PASSWORD" ]; then
+            echo "⚠️ WARNING: SMTP_PASSWORD secret is not set in GitHub Secrets. Email alerts will run in simulation mode."
+          else
+            echo "✅ SMTP_PASSWORD is configured."
           fi
 
           if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-            echo "⚠️ WARNING: TELEGRAM_BOT_TOKEN secret is not set in GitHub Secrets."
-            echo "Telegram alerts will run in simulation mode unless added."
+            echo "⚠️ WARNING: TELEGRAM_BOT_TOKEN secret is not set in GitHub Secrets. Telegram alerts will run in simulation mode."
+          else
+            echo "✅ TELEGRAM_BOT_TOKEN is configured."
           fi
 
           python -m flask --app run:app check-reminders
+
 
