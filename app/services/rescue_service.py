@@ -207,11 +207,11 @@ def execute_auto_rescue(user, force: bool = False) -> dict:
 
     today_utc = datetime.now(timezone.utc).date().isoformat()
 
-    if not getattr(user, "auto_rescue_enabled", False):
+    if not force and not getattr(user, "auto_rescue_enabled", False):
         return {"success": False, "error": "Auto-rescue is not enabled for this user."}
 
     if not user.leetcode_session or not user.leetcode_csrf_token:
-        return {"success": False, "error": "LeetCode session cookies not configured."}
+        return {"success": False, "error": "LeetCode session cookies not configured. Please paste your cookies and click 'Save Settings' first."}
 
     if not force and user.last_rescue_date_utc == today_utc:
         return {"success": False, "error": "Auto-rescue has already been executed today."}
