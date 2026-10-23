@@ -70,6 +70,33 @@ def get_leetcode_question_id(title_slug: str) -> str:
     return KNOWN_QUESTION_IDS.get(title_slug, "1")
 
 
+def sanitize_cookie_val(val: str, key_name: str = "") -> str:
+    """Strip quotes, whitespace, and accidental key= prefixes when pasting cookies."""
+    if not val:
+        return ""
+    val = val.strip().strip('"').strip("'")
+    if "=" in val:
+        parts = val.split("=", 1)
+        if key_name and parts[0].strip().lower() == key_name.lower():
+            val = parts[1].strip()
+        elif parts[0].strip().lower() in ("leetcode_session", "csrftoken"):
+            val = parts[1].strip()
+    return val.strip().strip('"').strip("'")
+
+
+def sanitize_problem_slug(slug: str) -> str:
+    """Extract clean problem slug (e.g. 'https://leetcode.com/problems/two-sum/' -> 'two-sum')."""
+    slug = (slug or "two-sum").strip().lower()
+    if "leetcode.com/problems/" in slug:
+        slug = slug.split("leetcode.com/problems/")[-1]
+    elif "problems/" in slug:
+        slug = slug.split("problems/")[-1]
+    slug = slug.split("?")[0].split("#")[0].strip("/")
+    import re
+    slug = re.sub(r"\s+", "-", slug)
+    return slug or "two-sum"
+
+
 def submit_to_leetcode(
     session_cookie: str,
     csrf_token: str,
@@ -82,9 +109,9 @@ def submit_to_leetcode(
     Returns:
         dict with success (bool), status (str), submission_id (int/str), error (str)
     """
-    problem_slug = (problem_slug or "two-sum").strip().lower()
-    session_cookie = (session_cookie or "").strip()
-    csrf_token = (csrf_token or "").strip()
+    problem_slug = sanitize_problem_slug(problem_slug)
+    session_cookie = sanitize_cookie_val(session_cookie, "LEETCODE_SESSION")
+    csrf_token = sanitize_cookie_val(csrf_token, "csrftoken")
     code = code or DEFAULT_TWO_SUM_PYTHON3
     language = (language or "python3").strip().lower()
 
@@ -92,18 +119,25 @@ def submit_to_leetcode(
         return {
             "success": False,
             "status": "CONFIG_ERROR",
-            "error": "LEETCODE_SESSION and csrftoken cookies are required for auto-rescue.",
+            "error": "LEETCODE_SESSION and csrftoken cookies are required for auto-rescue. Please paste them in Settings.",
         }
 
     question_id = get_leetcode_question_id(problem_slug)
     submit_url = f"https://leetcode.com/problems/{problem_slug}/submit/"
+
+    cookie_dict = {
+        "LEETCODE_SESSION": session_cookie,
+        "csrftoken": csrf_token,
+    }
 
     headers = {
         "Origin": "https://leetcode.com",
         "Referer": f"https://leetcode.com/problems/{problem_slug}/",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "x-csrftoken": csrf_token,
+        "X-CSRFToken": csrf_token,
         "Content-Type": "application/json",
+        "Accept": "*/*",
         "Cookie": f"LEETCODE_SESSION={session_cookie}; csrftoken={csrf_token};",
     }
 
@@ -116,7 +150,14 @@ def submit_to_leetcode(
     logger.info(f"Submitting auto-rescue problem '{problem_slug}' (QID: {question_id}, Lang: {language})...")
 
     try:
-        resp = requests.post(submit_url, json=payload, headers=headers, timeout=15)
+        resp = requests.post(
+            submit_url,
+            json=payload,
+            headers=headers,
+            cookies=cookie_dict,
+            allow_redirects=False,
+            timeout=15,
+        )
     except requests.RequestException as exc:
         return {
             "success": False,
@@ -124,11 +165,41 @@ def submit_to_leetcode(
             "error": f"Failed to connect to LeetCode: {exc}",
         }
 
+    # Handle redirects (301/302)
+    if resp.status_code in (301, 302, 307, 308):
+        loc = resp.headers.get("Location", "")
+        if "login" in loc.lower() or "accounts" in loc.lower():
+            return {
+                "success": False,
+                "status": "AUTH_FAILED",
+                "error": "LeetCode session cookie expired or invalid (redirected to login). Please copy fresh cookies from leetcode.com.",
+            }
+        # Follow redirect with POST to the canonical location if it's a slash-normalized redirect
+        try:
+            target_loc = loc if loc.startswith("http") else f"https://leetcode.com{loc}"
+            resp = requests.post(
+                target_loc,
+                json=payload,
+                headers=headers,
+                cookies=cookie_dict,
+                allow_redirects=False,
+                timeout=15,
+            )
+        except Exception as exc:
+            logger.warning(f"Failed to follow submission redirect to {loc}: {exc}")
+
     if resp.status_code in (401, 403):
         return {
             "success": False,
             "status": "AUTH_FAILED",
             "error": "LeetCode rejected authentication (HTTP 401/403). Your LEETCODE_SESSION or csrftoken may have expired.",
+        }
+
+    if resp.status_code == 404:
+        return {
+            "success": False,
+            "status": "NOT_FOUND",
+            "error": f"LeetCode returned 404 (Page Not Found) for problem '{problem_slug}'. Please ensure the Problem Slug in Settings is set to 'two-sum'.",
         }
 
     if resp.status_code != 200:
