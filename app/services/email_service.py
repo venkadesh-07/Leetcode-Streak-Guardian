@@ -53,28 +53,92 @@ def validate_header_value(value):
     return value.strip()
 
 
+import requests
+
+
+def send_via_brevo(api_key, sender_email, to_email, subject, body_text, body_html=None, sender_name=None):
+    """
+    Send an email via Brevo's HTTPS REST API (Port 443).
+    Bypasses cloud provider SMTP firewall blocks (e.g. Render Free Tier) and works for any recipient.
+    """
+    sender_name = sender_name or os.environ.get("REMINDER_SENDER_NAME", "LeetCode Streak Guardian")
+    payload = {
+        "sender": {"name": sender_name, "email": sender_email},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "textContent": body_text,
+    }
+    if body_html:
+        payload["htmlContent"] = body_html
+
+    headers = {
+        "api-key": api_key.strip(),
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+    try:
+        resp = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            json=payload,
+            headers=headers,
+            timeout=12,
+        )
+        if resp.status_code in (200, 201, 202):
+            data = resp.json() if resp.text else {}
+            message_id = data.get("messageId", "ok")
+            logger.info(f"[BREVO EMAIL SUCCESS] Sent to {to_email} | Subject: '{subject}' | MessageID: {message_id}")
+            return {
+                "success": True,
+                "mode": "brevo",
+                "recipient": to_email,
+                "subject": subject,
+                "message_id": message_id,
+            }
+        else:
+            err_msg = f"Brevo API error ({resp.status_code}): {resp.text}"
+            logger.error(f"[BREVO EMAIL ERROR] {err_msg}")
+            return {
+                "success": False,
+                "mode": "error",
+                "error": err_msg,
+                "recipient": to_email,
+            }
+    except Exception as exc:
+        logger.error(f"[BREVO EXCEPTION] Failed to send email to {to_email}: {exc}")
+        return {
+            "success": False,
+            "mode": "error",
+            "error": str(exc),
+            "recipient": to_email,
+        }
+
+
 def send_email(to_email, subject, body_text, body_html=None):
     """
-    Send an email via configured SMTP server, or simulate delivery if unconfigured.
+    Send an email via Brevo HTTPS API, or configured SMTP server, or simulate delivery if unconfigured.
 
     Returns:
-        dict: {"success": bool, "mode": "smtp"|"simulated", "recipient": str}
+        dict: {"success": bool, "mode": "brevo"|"smtp"|"simulated", "recipient": str}
     """
     to_email = validate_header_value(to_email)
     subject = validate_header_value(subject)
 
-    smtp_host = os.environ.get("SMTP_HOST")
+    brevo_api_key = os.environ.get("BREVO_API_KEY", "").strip()
+    smtp_host = os.environ.get("SMTP_HOST", "").strip()
     sender_email = validate_header_value(
         os.environ.get("REMINDER_SENDER_EMAIL", "no-reply@streak-guardian.local")
     )
 
     # Safe simulation guard: Never dispatch real emails during automated tests,
-    # when testing dummy domains (*@example.com), or when SMTP_HOST is unset.
+    # when testing dummy domains (*@example.com), or when no email provider is configured.
     from flask import current_app, has_app_context
     is_testing = (has_app_context() and current_app.config.get("TESTING")) or os.environ.get("FLASK_ENV") == "testing"
     is_dummy_domain = to_email.lower().endswith("@example.com") or to_email.lower().endswith(".test") or to_email.lower().endswith(".local")
 
-    if is_testing or is_dummy_domain or not smtp_host:
+    has_provider = bool(brevo_api_key or smtp_host)
+
+    if is_testing or is_dummy_domain or not has_provider:
         logger.info(
             f"[EMAIL SIMULATION] Sent to: {to_email} | Subject: '{subject}'"
         )
@@ -85,6 +149,11 @@ def send_email(to_email, subject, body_text, body_html=None):
             "subject": subject,
         }
 
+    # 1. Brevo HTTPS API (recommended for Render free tier - bypasses SMTP port blocking)
+    if brevo_api_key:
+        return send_via_brevo(brevo_api_key, sender_email, to_email, subject, body_text, body_html)
+
+    # 2. SMTP fallback (used by GitHub Actions & local development)
     smtp_port = int(os.environ.get("SMTP_PORT", 587))
     smtp_user = os.environ.get("SMTP_USER")
     smtp_password = os.environ.get("SMTP_PASSWORD")

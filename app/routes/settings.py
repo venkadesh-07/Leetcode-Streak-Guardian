@@ -109,12 +109,13 @@ def send_test_email():
     if res.get("success"):
         if res.get("mode") == "simulated":
             flash(
-                f"ℹ️ Email delivery was simulated (SMTP is not configured on this server). Target: {target_email}.",
+                f"ℹ️ Email delivery was simulated (neither BREVO_API_KEY nor SMTP_HOST is configured). Target: {target_email}.",
                 "info",
             )
         else:
+            channel_desc = " via Brevo HTTPS" if res.get("mode") == "brevo" else ""
             flash(
-                f"Test alert email dispatched successfully to {target_email}!",
+                f"Test alert email dispatched successfully{channel_desc} to {target_email}!",
                 "success",
             )
     else:
@@ -122,7 +123,7 @@ def send_test_email():
         if "Network is unreachable" in err_msg or "101" in err_msg:
             flash(
                 "⚠️ Outbound SMTP ports (587/465) are blocked by Render's free tier ([Errno 101] Network is unreachable). "
-                "Your automated cloud reminders on GitHub Actions and Telegram bot alerts work without restrictions!",
+                "Add BREVO_API_KEY to your Render Dashboard ➔ Environment to deliver emails over HTTPS (Port 443) without port blocks!",
                 "warning",
             )
         else:

@@ -36,6 +36,7 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMTP_USE_TLS: 'true'
           REMINDER_SENDER_EMAIL: ${{ secrets.REMINDER_SENDER_EMAIL || 'venkadesh3948a@gmail.com' }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           echo "======================================================="

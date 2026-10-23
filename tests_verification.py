@@ -336,12 +336,39 @@ class SecurityControlsTestCase(unittest.TestCase):
         import os
 
         # When SMTP_HOST is not in environment, email service safely logs and simulates
-        with patch.dict(os.environ, {"SMTP_HOST": ""}):
+        with patch.dict(os.environ, {"SMTP_HOST": "", "BREVO_API_KEY": ""}):
             result = send_email("coder@example.com", "Test Alert", "Don't forget to code!")
             self.assertTrue(result["success"])
             self.assertEqual(result["mode"], "simulated")
             self.assertEqual(result["recipient"], "coder@example.com")
-        print("  [PASS] Test 12: Email service local simulation mode confirmed safe.")
+
+        # Test Brevo HTTPS dispatch with mock
+        from app.services.email_service import send_via_brevo
+        from unittest.mock import MagicMock
+        with patch("requests.post") as mock_post:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 201
+            mock_resp.json.return_value = {"messageId": "<sample-brevo-id@smtp-relay.mailin.fr>"}
+            mock_resp.text = '{"messageId": "<sample-brevo-id@smtp-relay.mailin.fr>"}'
+            mock_post.return_value = mock_resp
+
+            brevo_res = send_via_brevo(
+                api_key="xkeysib-mock-api-key",
+                sender_email="sender@example.com",
+                to_email="student@university.edu",
+                subject="Test Alert",
+                body_text="Keep coding!",
+            )
+            self.assertTrue(brevo_res["success"])
+            self.assertEqual(brevo_res["mode"], "brevo")
+            self.assertEqual(brevo_res["recipient"], "student@university.edu")
+            self.assertEqual(brevo_res["message_id"], "<sample-brevo-id@smtp-relay.mailin.fr>")
+            self.assertTrue(mock_post.called)
+            args, kwargs = mock_post.call_args
+            self.assertEqual(args[0], "https://api.brevo.com/v3/smtp/email")
+            self.assertEqual(kwargs["headers"]["api-key"], "xkeysib-mock-api-key")
+
+        print("  [PASS] Test 12: Email service local simulation mode & Brevo HTTPS verified.")
 
     def test_13_reminder_job_logic(self):
         """Verify reminder scanner correctly identifies inactive streaks and updates records."""

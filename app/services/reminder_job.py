@@ -113,7 +113,7 @@ def run_reminder_check():
 
                     email_mode = send_res.get("mode")
                     if send_res.get("success"):
-                        if email_mode == "smtp" or is_testing:
+                        if email_mode in ("smtp", "brevo") or is_testing:
                             dispatched_any = True
                         logger.info(f"{user_identifier}: Streak reminder email sent (mode: {email_mode}).")
                     else:
