@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import urllib.parse
 
+import click
 from dotenv import load_dotenv
 from flask import Flask
 
@@ -144,12 +145,14 @@ def create_app(test_config=None):
 
 
     @app.cli.command("check-reminders")
-    def check_reminders_command():
+    @click.option("--force", is_flag=True, default=False, help="Bypass 4-hour cooldown and force send reminders")
+    def check_reminders_command(force):
         """Check all users with active reminders and dispatch streak alerts."""
         import click
         from app.services.reminder_job import run_reminder_check
-        click.echo("Running Streak Guardian Reminder Check...")
-        stats = run_reminder_check()
+        mode_str = " (FORCE mode)" if force else ""
+        click.echo(f"Running Streak Guardian Reminder Check{mode_str}...")
+        stats = run_reminder_check(force=force)
         click.echo(f"Checked Date (UTC): {stats['checked_date_utc']}")
         click.echo(f"Eligible Users: {stats['eligible_users']}")
         click.echo(f"Streaks Protected: {stats['already_protected']}")

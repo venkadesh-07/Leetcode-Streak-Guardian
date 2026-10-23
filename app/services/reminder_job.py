@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 REMINDER_INTERVAL_SECONDS = 4 * 3600  # 4 hours
 
 
-def run_reminder_check():
+def run_reminder_check(force=False):
     """
     Check all users with active reminders and dispatch streak risk alerts every 4 hours
     until at least 1 problem is completed that day.
@@ -91,9 +91,9 @@ def run_reminder_check():
             stats["already_protected"] += 1
             logger.info(f"{user_identifier}: Streak protected today ({result['submissions_today']} submissions). No alert needed.")
         else:
-            # Streak at risk! Check if 4 hours have elapsed since the last reminder
+            # Streak at risk! Check if 4 hours have elapsed since the last reminder (unless force is requested)
             # Allow 100s buffer for scheduler minor timing variances
-            if user.last_reminder_sent_at and (now_ts - user.last_reminder_sent_at) < (REMINDER_INTERVAL_SECONDS - 100):
+            if not force and user.last_reminder_sent_at and (now_ts - user.last_reminder_sent_at) < (REMINDER_INTERVAL_SECONDS - 100):
                 stats["interval_cooldown"] += 1
                 logger.info(f"{user_identifier}: Reminder already sent within last 4 hours. Skipping.")
             else:

@@ -6,6 +6,13 @@ on:
     # Schedule: 00:15, 04:15, 08:15, 12:15, 16:15, 20:15 UTC (6 runs/day)
     - cron: '15 */4 * * *'
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force send alerts (bypass 4-hour anti-spam cooldown)'
+        required: false
+        type: boolean
+        default: true
+
 
 jobs:
   check-and-remind:
@@ -67,6 +74,12 @@ jobs:
             echo "✅ TELEGRAM_BOT_TOKEN is configured."
           fi
 
-          python -m flask --app run:app check-reminders
+          FORCE_ARG=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force }}" != "false" ]; then
+            FORCE_ARG="--force"
+            echo "⚡ Force mode active: Manual test run will bypass the 4-hour cooldown."
+          fi
+
+          python -m flask --app run:app check-reminders $FORCE_ARG
 
 
