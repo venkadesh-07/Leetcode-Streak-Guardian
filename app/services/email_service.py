@@ -217,15 +217,27 @@ def send_streak_reminder(user, submissions_today, current_streak, date_utc):
 
     subject = f"{time_info['subject_tag']} Keep your {current_streak}-day LeetCode streak alive!"
 
+    sub_count = int(submissions_today) if str(submissions_today).isdigit() else 0
+    if sub_count == 0:
+        email_status_text = f"You currently hold a {current_streak}-day streak, but no submissions have been recorded yet today for your account ({user.leetcode_username})."
+        email_action_text = "Solve at least one problem before 05:30 AM IST to protect your streak!"
+        html_p_status = f"You currently hold a <strong>{current_streak}-day coding streak</strong> on LeetCode (<strong>{user.leetcode_username}</strong>), but no submissions have been detected yet today ({date_display_ist} IST)."
+        html_p_action = "Solve and submit at least one problem before the daily reset at <strong>05:30 AM IST</strong> to keep your streak intact!"
+    else:
+        email_status_text = f"You currently hold a {current_streak}-day streak, and you have completed {sub_count}/3 submission(s) today for your account ({user.leetcode_username})."
+        email_action_text = f"Keep your momentum going! Complete at least 3 problems today ({sub_count}/3 so far) before the 05:30 AM IST reset!"
+        html_p_status = f"You currently hold a <strong>{current_streak}-day coding streak</strong> on LeetCode (<strong>{user.leetcode_username}</strong>). You have logged <strong>{sub_count}/3</strong> submission(s) today ({date_display_ist} IST)."
+        html_p_action = f"Daily Goal: Complete at least 3 problems today (currently <strong>{sub_count}/3</strong>) before the reset at <strong>05:30 AM IST</strong>!"
+
     body_text = f"""Hello,
 
 This is your LeetCode Streak Guardian alert for {date_display_ist} (IST).
 
 ⏰ TIME REMAINING: Only {time_info['time_display']} left before the daily reset at 05:30 AM IST!
 
-You currently hold a {current_streak}-day streak, but no submissions have been recorded yet today for your account ({user.leetcode_username}).
+{email_status_text}
 
-Solve at least one problem before 05:30 AM IST to protect your streak!
+{email_action_text}
 
 Solve Now: https://leetcode.com/problemset/
 Your Dashboard: {base_url}/dashboard
@@ -259,8 +271,8 @@ LeetCode Streak Guardian
         </div>
 
         <p>Hello,</p>
-        <p>You currently hold a <strong>{current_streak}-day coding streak</strong> on LeetCode (<strong>{user.leetcode_username}</strong>), but no submissions have been detected yet today ({date_display_ist} IST).</p>
-        <p>Solve and submit at least one problem before the daily reset at <strong>05:30 AM IST</strong> to keep your streak intact!</p>
+        <p>{html_p_status}</p>
+        <p>{html_p_action}</p>
         <a href="https://leetcode.com/problemset/" class="cta">Solve a Problem Now</a>
         <p style="margin-top: 14px;"><a href="{base_url}/dashboard" style="color: #94a3b8; font-size: 13px;">View Your Dashboard</a></p>
         <footer>Stay consistent. Keep coding! &bull; LeetCode Streak Guardian (IST)</footer>

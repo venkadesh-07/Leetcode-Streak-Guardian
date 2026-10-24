@@ -75,15 +75,23 @@ def send_telegram_streak_reminder(
     else:
         urgency_line = f"⏳ <b>Time Remaining:</b> <b>{time_display}</b> before 05:30 AM IST reset"
 
+    sub_count = int(submissions_today) if str(submissions_today).isdigit() else 0
+    if sub_count == 0:
+        headline = f"Hey <b>{safe_username}</b>, you haven't solved any problems yet today!"
+        action_note = f"⚠️ Solve at least 1 problem before <b>05:30 AM IST</b> to keep your streak alive!"
+    else:
+        headline = f"Hey <b>{safe_username}</b>, you have solved <b>{safe_submissions}/3</b> problem(s) today!"
+        action_note = f"⚠️ Daily Goal: Complete at least 3 problems today (currently <b>{safe_submissions}/3</b>) before <b>05:30 AM IST</b>!"
+
     message_text = (
         f"🔥 <b>LeetCode Streak Alert!</b>\n\n"
-        f"Hey <b>{safe_username}</b>, you haven't solved any problems yet today!\n\n"
+        f"{headline}\n\n"
         f"📊 <b>Current Streak:</b> <code>{safe_streak} days</code>\n"
         f"{urgency_line}\n"
-        f"⚡ <b>Today's Submissions:</b> <code>{safe_submissions}</code>\n"
+        f"⚡ <b>Today's Submissions:</b> <code>{safe_submissions}</code> (Goal: 3)\n"
         f"📅 <b>Date (IST):</b> <code>{safe_date_ist}</code>\n"
         f"⏰ <b>Reset Deadline:</b> <b>05:30 AM IST</b>\n\n"
-        f"⚠️ Solve at least 1 problem before <b>05:30 AM IST</b> to keep your streak alive!\n\n"
+        f"{action_note}\n\n"
         f"👉 <a href=\"https://leetcode.com/problemset/all/\">Solve Daily Problem on LeetCode</a>"
     )
 

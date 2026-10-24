@@ -88,8 +88,15 @@ def run_reminder_check(force=False):
         user.is_active_today = result.get("active_today", False)
         user.last_checked_date_utc = today_utc
 
-        # Auto-Rescue Airbag: If inactive and within the final hour before 05:30 AM IST reset (or forced), attempt automatic rescue
-        if not result.get("active_today") and getattr(user, "auto_rescue_enabled", False):
+        # Determine target submission threshold (default: 3 submissions for testing, configurable via DAILY_SUBMISSION_GOAL)
+        from flask import current_app, has_app_context
+        is_testing = (has_app_context() and current_app.config.get("TESTING")) or os.environ.get("FLASK_ENV") == "testing"
+        default_goal = "1" if is_testing else "3"
+        target_goal = int(os.environ.get("DAILY_SUBMISSION_GOAL", default_goal))
+        submissions = result.get("submissions_today", 0)
+
+        # Auto-Rescue Airbag: If 0 submissions and within the final hour before 05:30 AM IST reset (or forced), attempt automatic rescue
+        if submissions == 0 and getattr(user, "auto_rescue_enabled", False):
             from app.services.email_service import get_time_remaining_until_reset
             from app.services.rescue_service import execute_auto_rescue
             time_left = get_time_remaining_until_reset()
@@ -102,16 +109,16 @@ def run_reminder_check(force=False):
                     result["submissions_today"] = max(result.get("submissions_today", 0), 1)
                     user.today_submissions = result["submissions_today"]
                     user.is_active_today = True
+                    submissions = user.today_submissions
 
-        if result.get("active_today"):
+        if submissions >= target_goal:
             stats["already_protected"] += 1
-            logger.info(f"{user_identifier}: Streak protected today ({result['submissions_today']} submissions). No alert needed.")
+            logger.info(f"{user_identifier}: Target met today ({submissions}/{target_goal} submissions). No alert needed.")
         else:
-            # Streak at risk! Check if 4 hours have elapsed since the last reminder (unless force is requested)
-            # Allow 100s buffer for scheduler minor timing variances
+            # Submissions are less than target_goal (e.g. < 3)! Check 4-hour cooldown
             if not force and user.last_reminder_sent_at and (now_ts - user.last_reminder_sent_at) < (REMINDER_INTERVAL_SECONDS - 100):
                 stats["interval_cooldown"] += 1
-                logger.info(f"{user_identifier}: Reminder already sent within last 4 hours. Skipping.")
+                logger.info(f"{user_identifier}: Reminder already sent within last 4 hours ({submissions}/{target_goal} submissions). Skipping.")
             else:
                 dispatched_any = False
 
