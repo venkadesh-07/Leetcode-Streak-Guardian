@@ -13,9 +13,16 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_BOT_TOKEN = "8669464605:AAHPnXQzw3Ia4xeK2EFZV0VyTZwn1SoLgT8"
+
+
 def get_telegram_bot_token() -> str:
-    """Retrieve the Telegram bot API token from environment."""
-    return os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    """Retrieve the Telegram bot API token from environment with production fallback."""
+    from flask import current_app, has_app_context
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    if not token and has_app_context():
+        token = current_app.config.get("TELEGRAM_BOT_TOKEN", "").strip()
+    return token or DEFAULT_BOT_TOKEN
 
 
 def validate_telegram_chat_id(chat_id: str) -> bool:
@@ -47,7 +54,7 @@ def send_telegram_streak_reminder(
     if not validate_telegram_chat_id(chat_id):
         return {"success": False, "error": "Invalid Telegram Chat ID format. It must be numeric."}
 
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    bot_token = get_telegram_bot_token()
 
     # Simulation mode for local development/testing without real token
     if (
@@ -129,7 +136,7 @@ def get_telegram_bot_username() -> str:
     configured = os.environ.get("TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
     if configured:
         return configured
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    bot_token = get_telegram_bot_token()
     if not bot_token:
         return "LeetcodeStreakGuardianbot"
     try:
@@ -143,7 +150,7 @@ def get_telegram_bot_username() -> str:
 
 def send_telegram_message(chat_id: str, text: str, parse_mode: str = "HTML") -> bool:
     """Send a plain or HTML message via the configured Telegram Bot with plain text fallback."""
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    bot_token = get_telegram_bot_token()
     if not bot_token or not chat_id:
         logger.warning(f"send_telegram_message: Missing bot_token or chat_id (chat_id: {chat_id})")
         return False
@@ -461,7 +468,7 @@ def sync_telegram_account_links() -> dict:
     Returns:
         dict: {"connected_users": list_of_user_ids, "count": int}
     """
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    bot_token = get_telegram_bot_token()
     if not bot_token:
         return {"connected_users": [], "count": 0}
 
