@@ -116,14 +116,83 @@ def trigger_cron_reminders():
     stats = run_reminder_check()
     # Return a lightweight summary to stay within cron-job.org's response size limit.
     summary = {
+        "job": "daily-reminders",
         "checked_date_utc": stats.get("checked_date_utc"),
         "eligible_users": stats.get("eligible_users", 0),
         "reminders_sent": stats.get("reminders_sent", 0),
         "already_protected": stats.get("already_protected", 0),
         "interval_cooldown": stats.get("interval_cooldown", 0),
+        "auto_rescued": stats.get("auto_rescued", 0),
         "error_count": len(stats.get("errors", [])),
     }
     return jsonify({"status": "success", "results": summary}), 200
+
+
+@main.route("/api/cron/auto-rescue", methods=["GET", "POST"])
+@csrf.exempt
+def trigger_cron_auto_rescue():
+    """
+    Dedicated webhook endpoint specifically for the Emergency Auto-Rescue Airbag.
+    Called at 04:10 AM IST by cron-job.org to ensure streaks are protected before the 05:30 AM IST reset.
+    """
+    secret_param = request.args.get("secret", "").strip()
+    auth_header = request.headers.get("Authorization", "").strip()
+    bearer_token = ""
+    if auth_header.startswith("Bearer "):
+        bearer_token = auth_header[7:].strip()
+
+    provided_token = secret_param or bearer_token
+
+    expected_secret = os.getenv("CRON_SECRET", "").strip()
+    if not expected_secret:
+        expected_secret = current_app.config.get("SECRET_KEY", "").strip()
+
+    if not provided_token or not expected_secret or not hmac.compare_digest(provided_token, expected_secret):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+
+    from app.services.time_utils import get_time_remaining_until_reset
+    from app.services.rescue_service import execute_auto_rescue
+    from app.services.leetcode_service import fetch_user_recent_activity
+    from app.models import User
+    from app.extensions import db
+
+    time_left = get_time_remaining_until_reset()
+    minutes_left = (time_left.get("hours", 24) * 60) + time_left.get("minutes", 0)
+    today_utc = datetime.now(timezone.utc).date().isoformat()
+    force = request.args.get("force", "").lower() in ("true", "1", "yes")
+
+    users = db.session.execute(
+        db.select(User).filter_by(auto_rescue_enabled=True)
+    ).scalars().all()
+
+    rescued = 0
+    statuses = []
+
+    for user in users:
+        activity = fetch_user_recent_activity(user.leetcode_username)
+        submissions = activity.get("submissions_today", 0)
+
+        # Trigger if 0 submissions and (<= 85 mins before reset or forced)
+        if submissions == 0:
+            if (minutes_left <= 85 or force) and user.last_rescue_date_utc != today_utc and user.leetcode_session:
+                res = execute_auto_rescue(user, force=force)
+                if res.get("success"):
+                    rescued += 1
+                statuses.append({"user": user.leetcode_username, "action": "auto-rescue executed", "success": res.get("success")})
+            else:
+                statuses.append({"user": user.leetcode_username, "action": "airbag standing by (not in emergency window or already rescued)", "minutes_left": minutes_left})
+        else:
+            statuses.append({"user": user.leetcode_username, "action": "already protected", "submissions_today": submissions})
+
+    return jsonify({
+        "status": "success",
+        "job": "auto-rescue-airbag",
+        "time_remaining_until_reset": time_left.get("time_display"),
+        "minutes_until_reset": minutes_left,
+        "eligible_users": len(users),
+        "auto_rescued_count": rescued,
+        "details": statuses,
+    }), 200
 
 
 @main.route("/api/v1/streak-status", methods=["GET"])
