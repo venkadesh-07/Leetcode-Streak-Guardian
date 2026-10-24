@@ -164,7 +164,10 @@ def run_reminder_check(force=False):
 
                 if dispatched_any:
                     user.last_reminder_sent_date_utc = today_utc
-                    user.last_reminder_sent_at = now_ts
+                    if not force:
+                        user.last_reminder_sent_at = now_ts
+                    else:
+                        logger.info(f"{user_identifier}: Manual/force run active. Preserved cooldown timer so regular schedule is not blocked.")
                     stats["reminders_sent"] += 1
                 else:
                     logger.warning(f"{user_identifier}: No real reminders dispatched (simulation mode or channel error). Cooldown not updated.")
