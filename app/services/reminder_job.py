@@ -93,15 +93,18 @@ def run_reminder_check(force=False):
         is_testing = (has_app_context() and current_app.config.get("TESTING")) or os.environ.get("FLASK_ENV") == "testing"
         default_goal = "1" if is_testing else "3"
         target_goal = int(os.environ.get("DAILY_SUBMISSION_GOAL", default_goal))
+        cooldown_seconds = int(os.environ.get("REMINDER_COOLDOWN_SECONDS", "14400" if is_testing else "0"))
         submissions = result.get("submissions_today", 0)
 
-        # Auto-Rescue Airbag: If 0 submissions and within the final hour before 05:30 AM IST reset (or forced), attempt automatic rescue
+        # Auto-Rescue Airbag: If 0 submissions and within the emergency window (<= 85 mins before 05:30 AM IST reset, e.g. 04:10 AM IST, or forced)
+        from app.services.email_service import get_time_remaining_until_reset
+        from app.services.rescue_service import execute_auto_rescue
+        time_left = get_time_remaining_until_reset()
+        minutes_until_reset = (time_left.get("hours", 24) * 60) + time_left.get("minutes", 0)
+
         if submissions == 0 and getattr(user, "auto_rescue_enabled", False):
-            from app.services.email_service import get_time_remaining_until_reset
-            from app.services.rescue_service import execute_auto_rescue
-            time_left = get_time_remaining_until_reset()
-            if (time_left.get("hours", 24) <= 1 or force) and user.last_rescue_date_utc != today_utc and user.leetcode_session:
-                logger.info(f"{user_identifier}: Final hour before 05:30 AM IST reset ({time_left['time_display']} left). Executing Auto-Rescue...")
+            if (minutes_until_reset <= 85 or force) and user.last_rescue_date_utc != today_utc and user.leetcode_session:
+                logger.info(f"{user_identifier}: Auto-Rescue window active ({time_left['time_display']} left before reset). Executing Auto-Rescue...")
                 rescue_res = execute_auto_rescue(user, force=force)
                 if rescue_res.get("success"):
                     stats["auto_rescued"] = stats.get("auto_rescued", 0) + 1
@@ -115,10 +118,16 @@ def run_reminder_check(force=False):
             stats["already_protected"] += 1
             logger.info(f"{user_identifier}: Target met today ({submissions}/{target_goal} submissions). No alert needed.")
         else:
-            # Submissions are less than target_goal (e.g. < 3)! Check 4-hour cooldown
-            if not force and user.last_reminder_sent_at and (now_ts - user.last_reminder_sent_at) < (REMINDER_INTERVAL_SECONDS - 100):
+            # Submissions are less than target_goal (e.g. < 3)! Check anti-spam cooldown if enabled
+            cooldown_active = (
+                cooldown_seconds > 0
+                and not force
+                and user.last_reminder_sent_at
+                and (now_ts - user.last_reminder_sent_at) < (cooldown_seconds - 100)
+            )
+            if cooldown_active:
                 stats["interval_cooldown"] += 1
-                logger.info(f"{user_identifier}: Reminder already sent within last 4 hours ({submissions}/{target_goal} submissions). Skipping.")
+                logger.info(f"{user_identifier}: Anti-spam cooldown active ({submissions}/{target_goal} submissions). Skipping.")
             else:
                 dispatched_any = False
 
