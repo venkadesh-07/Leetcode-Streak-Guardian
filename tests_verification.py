@@ -868,6 +868,94 @@ class SecurityControlsTestCase(unittest.TestCase):
 
         print("  [PASS] Test 22: Emergency Auto-Rescue Airbag submission logic, database state, and final hour trigger verified.")
 
+    def test_23_indian_standard_time_formatting(self):
+        """Verify that all user-facing schedules, deadlines, dashboards, alerts, and APIs operate in Indian Standard Time (IST)."""
+        import re
+        from app.services.time_utils import IST, get_now_ist, format_ist_date, format_ist_datetime, get_time_remaining_until_reset
+        from app.services.email_service import send_streak_reminder
+        from app.services.telegram_service import send_telegram_streak_reminder
+
+        # 1. Verify IST offset is UTC+05:30
+        now_ist = get_now_ist()
+        self.assertEqual(now_ist.tzinfo, IST)
+        self.assertEqual(now_ist.utcoffset().total_seconds(), 5.5 * 3600)
+
+        # 2. Verify reset time info targets 05:30 AM IST
+        time_info = get_time_remaining_until_reset()
+        self.assertEqual(time_info["reset_time_str"], "05:30 AM IST")
+        self.assertIn("05:30 AM IST", time_info["urgency_badge"])
+        self.assertIn("m", time_info["time_display"])
+        self.assertIn("left", time_info["subject_tag"])
+
+        # 3. Verify Dashboard HTML renders IST metrics
+        with self.app.app_context():
+            user = User(
+                email="istuser@example.com",
+                leetcode_username="ist_coder",
+                current_streak=10,
+                today_submissions=2,
+                is_active_today=True,
+            )
+            user.set_password("SecurePass123!")
+            db.session.add(user)
+            db.session.commit()
+
+            login_page = self.client.get("/login")
+            token_match = re.search(r'name="csrf_token"[^>]*?value="([^"]+)"', login_page.text)
+            self.assertIsNotNone(token_match)
+            csrf_token = token_match.group(1)
+
+            login_resp = self.client.post(
+                "/login",
+                data={
+                    "csrf_token": csrf_token,
+                    "email": "istuser@example.com",
+                    "password": "SecurePass123!",
+                },
+                follow_redirects=True,
+            )
+            self.assertEqual(login_resp.status_code, 200)
+            html_text = login_resp.text
+            self.assertIn("Submissions Today (IST)", html_text)
+            self.assertIn("05:30 AM IST", html_text)
+            self.assertNotIn("Submissions Today (UTC)", html_text)
+
+        # 4. Verify API streak status returns IST fields
+        with self.app.app_context():
+            token = user.get_or_create_api_token()
+            db.session.commit()
+            api_res = self.client.get("/api/v1/streak-status", headers={"X-API-Key": token})
+            self.assertEqual(api_res.status_code, 200)
+            api_data = api_res.get_json()
+            self.assertEqual(api_data["time_remaining"]["timezone"], "IST")
+            self.assertEqual(api_data["time_remaining"]["reset_deadline_ist"], "05:30 AM IST")
+            self.assertIn("05:30 AM IST", api_data["time_remaining"]["formatted"])
+
+        # 5. Verify Telegram Alert text explicitly contains IST
+        with self.app.app_context():
+            with patch("requests.post") as mock_tg_post:
+                mock_tg_resp = MagicMock()
+                mock_tg_resp.status_code = 200
+                mock_tg_resp.headers = {"content-type": "application/json"}
+                mock_tg_resp.json.return_value = {"ok": True}
+                mock_tg_post.return_value = mock_tg_resp
+
+                with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "123456:FAKE_TOKEN_XYZ"}):
+                    tg_res = send_telegram_streak_reminder(
+                        chat_id="99887766",
+                        user=user,
+                        submissions_today=0,
+                        current_streak=10,
+                        date_utc="2026-10-24",
+                    )
+                    self.assertTrue(tg_res["success"])
+                    payload = mock_tg_post.call_args[1]["json"]
+                    self.assertIn("05:30 AM IST", payload["text"])
+                    self.assertIn("Date (IST)", payload["text"])
+                    self.assertNotIn("23:59 UTC", payload["text"])
+
+        print("  [PASS] Test 23: Indian Standard Time (IST) formatting, dashboard labels, and 05:30 AM IST alerts verified.")
+
 
 if __name__ == "__main__":
     print("\nRunning Security & Rate Limiting Verification Suite...")
@@ -875,7 +963,7 @@ if __name__ == "__main__":
     runner = unittest.TextTestRunner(verbosity=1)
     result = runner.run(suite)
     if result.wasSuccessful():
-        print("\nALL 22 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
+        print("\nALL 23 VERIFICATION CHECKS PASSED SUCCESSFULLY!\n")
     else:
         print("\nSOME CHECKS FAILED. Review errors above.\n")
         exit(1)

@@ -60,26 +60,20 @@ def send_telegram_streak_reminder(
 
     username = getattr(user, "leetcode_username", None) or getattr(user, "email", "Coder")
     # Escape HTML special characters for safety
-    import html
+    from app.services.time_utils import get_time_remaining_until_reset, format_ist_date
     safe_username = html.escape(str(username))
     safe_streak = html.escape(str(current_streak))
     safe_submissions = html.escape(str(submissions_today))
-    safe_date = html.escape(str(date_utc))
+    time_info = get_time_remaining_until_reset()
+    safe_date_ist = html.escape(time_info.get("date_ist_str") or format_ist_date())
+    time_display = time_info["time_display"]
 
-    # Calculate time remaining until 23:59:59 UTC reset
-    now_utc = datetime.now(timezone.utc)
-    reset_utc = now_utc.replace(hour=23, minute=59, second=59, microsecond=0)
-    diff_seconds = max(0, int((reset_utc - now_utc).total_seconds()))
-    hours = diff_seconds // 3600
-    minutes = (diff_seconds % 3600) // 60
-    time_display = f"{minutes}m" if hours == 0 else f"{hours}h {minutes}m"
-
-    if hours <= 1:
-        urgency_line = f"🚨 <b>CRITICAL:</b> Only <b>{time_display}</b> left before reset!"
-    elif hours <= 4:
-        urgency_line = f"⏰ <b>URGENT:</b> Only <b>{time_display}</b> left before reset!"
+    if time_info["hours"] <= 1:
+        urgency_line = f"🚨 <b>CRITICAL:</b> Only <b>{time_display}</b> left before 05:30 AM IST reset!"
+    elif time_info["hours"] <= 4:
+        urgency_line = f"⏰ <b>URGENT:</b> Only <b>{time_display}</b> left before 05:30 AM IST reset!"
     else:
-        urgency_line = f"⏳ <b>Time Remaining:</b> <b>{time_display}</b> before 23:59 UTC reset"
+        urgency_line = f"⏳ <b>Time Remaining:</b> <b>{time_display}</b> before 05:30 AM IST reset"
 
     message_text = (
         f"🔥 <b>LeetCode Streak Alert!</b>\n\n"
@@ -87,8 +81,9 @@ def send_telegram_streak_reminder(
         f"📊 <b>Current Streak:</b> <code>{safe_streak} days</code>\n"
         f"{urgency_line}\n"
         f"⚡ <b>Today's Submissions:</b> <code>{safe_submissions}</code>\n"
-        f"📅 <b>Date (UTC):</b> <code>{safe_date}</code>\n\n"
-        f"⚠️ Solve at least 1 problem before <b>23:59 UTC</b> to keep your streak alive!\n\n"
+        f"📅 <b>Date (IST):</b> <code>{safe_date_ist}</code>\n"
+        f"⏰ <b>Reset Deadline:</b> <b>05:30 AM IST</b>\n\n"
+        f"⚠️ Solve at least 1 problem before <b>05:30 AM IST</b> to keep your streak alive!\n\n"
         f"👉 <a href=\"https://leetcode.com/problemset/all/\">Solve Daily Problem on LeetCode</a>"
     )
 
@@ -173,7 +168,7 @@ def _build_welcome_single(user, first_name=None, tip_type="pin"):
     tip = (
         "💡 <i>Tip: Sharing this Telegram with friends? They can send their own 6-digit PIN in this chat to receive their alerts here too!</i>"
         if tip_type == "pin"
-        else "We'll alert you right here whenever your streak is at risk before UTC midnight!"
+        else "We'll alert you right here whenever your streak is at risk before 05:30 AM IST reset!"
     )
     return (
         f"🎉 <b>LeetCode Streak Guardian Connected!</b>\n\n"
@@ -381,6 +376,9 @@ def process_telegram_update(item: dict) -> dict:
                 user.last_checked_date_utc = result.get("checked_date_utc")
                 db.session.commit()
 
+                from app.services.time_utils import get_time_remaining_until_reset, format_ist_date
+                time_info = get_time_remaining_until_reset()
+                ist_date_str = time_info.get("date_ist_str") or format_ist_date()
                 status_icon = "✅ Streak Protected!" if user.is_active_today else "⚠️ Streak At Risk!"
                 msg_reply = (
                     f"🔥 <b>LeetCode Streak Status</b>\n\n"
@@ -388,8 +386,9 @@ def process_telegram_update(item: dict) -> dict:
                     f"📊 <b>Current Streak:</b> <code>{user.current_streak} days</code>\n"
                     f"⚡ <b>Today's Submissions:</b> <code>{user.today_submissions}</code>\n"
                     f"🛡️ <b>Status:</b> <b>{status_icon}</b>\n"
-                    f"📅 <b>Date (UTC):</b> <code>{user.last_checked_date_utc}</code>\n\n"
-                    f"{'Keep up the great work!' if user.is_active_today else 'Solve at least 1 problem before UTC midnight to maintain your streak!'}"
+                    f"📅 <b>Date (IST):</b> <code>{ist_date_str}</code>\n"
+                    f"⏰ <b>Reset Deadline:</b> <code>05:30 AM IST</code> ({time_info['time_display']} left)\n\n"
+                    f"{'Keep up the great work! Streak is protected until next reset.' if user.is_active_today else 'Solve at least 1 problem before 05:30 AM IST to maintain your streak!'}"
                 )
                 send_telegram_message(chat_id, msg_reply)
                 return {"handled": True, "action": "streak_reported"}
@@ -426,7 +425,7 @@ def process_telegram_update(item: dict) -> dict:
             summary_text = (
                 f"🔥 <b>LeetCode Squad Streaks ({len(users)} Linked Accounts)</b>\n\n"
                 + "\n\n".join(cards)
-                + "\n\n🛡️ <i>Solve today's problem before 23:59 UTC to keep all streaks alive!</i>"
+                + "\n\n🛡️ <i>Solve today's problem before 05:30 AM IST to keep all streaks alive!</i>"
             )
             send_telegram_message(chat_id, summary_text)
             return {"handled": True, "action": "squad_streak_reported", "count": len(users)}

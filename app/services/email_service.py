@@ -195,51 +195,17 @@ def send_email(to_email, subject, body_text, body_html=None):
 from datetime import datetime, timezone
 
 
-def get_time_remaining_until_reset():
-    """
-    Calculate hours and minutes remaining until daily LeetCode reset (23:59:59 UTC).
-    Returns urgency information for dynamic time-based alerts.
-    """
-    now_utc = datetime.now(timezone.utc)
-    reset_utc = now_utc.replace(hour=23, minute=59, second=59, microsecond=0)
-    diff_seconds = max(0, int((reset_utc - now_utc).total_seconds()))
-    hours = diff_seconds // 3600
-    minutes = (diff_seconds % 3600) // 60
-
-    if hours <= 1:
-        urgency_level = "critical"
-        time_display = f"{minutes}m" if hours == 0 else f"{hours}h {minutes}m"
-        urgency_badge = f"🚨 CRITICAL: Only {time_display} Remaining Before Reset!"
-        badge_style = "background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.7);"
-        subject_tag = f"🚨 [CRITICAL: {time_display} LEFT]"
-    elif hours <= 4:
-        urgency_level = "urgent"
-        time_display = f"{hours}h {minutes}m"
-        urgency_badge = f"⏰ URGENT: Only {time_display} Left Before 23:59 UTC!"
-        badge_style = "background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.7);"
-        subject_tag = f"⏰ [URGENT: {time_display} LEFT]"
-    else:
-        urgency_level = "warning"
-        time_display = f"{hours} hours"
-        urgency_badge = f"⏳ {hours} Hours Remaining Before Reset (23:59 UTC)"
-        badge_style = "background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);"
-        subject_tag = f"🔥 [{hours}h left]"
-
-    return {
-        "hours": hours,
-        "minutes": minutes,
-        "time_display": time_display,
-        "urgency_level": urgency_level,
-        "urgency_badge": urgency_badge,
-        "badge_style": badge_style,
-        "subject_tag": subject_tag,
-    }
+from app.services.time_utils import (
+    get_time_remaining_until_reset,
+    format_ist_date,
+    get_now_ist,
+)
 
 
 def send_streak_reminder(user, submissions_today, current_streak, date_utc):
     """
     Send a streak risk notification email to the user's configured reminder email
-    with dynamic time-remaining urgency.
+    with dynamic time-remaining urgency in Indian Standard Time (IST).
     """
     recipient = user.reminder_email
     if not recipient:
@@ -247,18 +213,19 @@ def send_streak_reminder(user, submissions_today, current_streak, date_utc):
 
     base_url = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5001").rstrip("/")
     time_info = get_time_remaining_until_reset()
+    date_display_ist = time_info.get("date_ist_str") or format_ist_date()
 
     subject = f"{time_info['subject_tag']} Keep your {current_streak}-day LeetCode streak alive!"
 
     body_text = f"""Hello,
 
-This is your LeetCode Streak Guardian alert for {date_utc} (UTC).
+This is your LeetCode Streak Guardian alert for {date_display_ist} (IST).
 
-⏰ TIME REMAINING: Only {time_info['time_display']} left before the daily reset at 23:59 UTC!
+⏰ TIME REMAINING: Only {time_info['time_display']} left before the daily reset at 05:30 AM IST!
 
 You currently hold a {current_streak}-day streak, but no submissions have been recorded yet today for your account ({user.leetcode_username}).
 
-Solve at least one problem before 23:59 UTC to protect your streak!
+Solve at least one problem before 05:30 AM IST to protect your streak!
 
 Solve Now: https://leetcode.com/problemset/
 Your Dashboard: {base_url}/dashboard
@@ -288,15 +255,15 @@ LeetCode Streak Guardian
         <div class="badge">{time_info['urgency_badge']}</div>
 
         <div class="urgency-box">
-            ⏰ <strong>Time Remaining:</strong> <span class="countdown">{time_info['time_display']}</span> left before reset at <strong>23:59 UTC</strong>!
+            ⏰ <strong>Time Remaining:</strong> <span class="countdown">{time_info['time_display']}</span> left before reset at <strong>05:30 AM IST</strong>!
         </div>
 
         <p>Hello,</p>
-        <p>You currently hold a <strong>{current_streak}-day coding streak</strong> on LeetCode (<strong>{user.leetcode_username}</strong>), but no submissions have been detected yet today.</p>
-        <p>Solve and submit at least one problem before the daily reset to keep your streak intact!</p>
+        <p>You currently hold a <strong>{current_streak}-day coding streak</strong> on LeetCode (<strong>{user.leetcode_username}</strong>), but no submissions have been detected yet today ({date_display_ist} IST).</p>
+        <p>Solve and submit at least one problem before the daily reset at <strong>05:30 AM IST</strong> to keep your streak intact!</p>
         <a href="https://leetcode.com/problemset/" class="cta">Solve a Problem Now</a>
         <p style="margin-top: 14px;"><a href="{base_url}/dashboard" style="color: #94a3b8; font-size: 13px;">View Your Dashboard</a></p>
-        <footer>Stay consistent. Keep coding! &bull; LeetCode Streak Guardian</footer>
+        <footer>Stay consistent. Keep coding! &bull; LeetCode Streak Guardian (IST)</footer>
     </div>
 </body>
 </html>

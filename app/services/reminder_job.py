@@ -88,13 +88,13 @@ def run_reminder_check(force=False):
         user.is_active_today = result.get("active_today", False)
         user.last_checked_date_utc = today_utc
 
-        # Auto-Rescue Airbag: If inactive and within the final hour before UTC reset (or forced), attempt automatic rescue
+        # Auto-Rescue Airbag: If inactive and within the final hour before 05:30 AM IST reset (or forced), attempt automatic rescue
         if not result.get("active_today") and getattr(user, "auto_rescue_enabled", False):
             from app.services.email_service import get_time_remaining_until_reset
             from app.services.rescue_service import execute_auto_rescue
             time_left = get_time_remaining_until_reset()
             if (time_left.get("hours", 24) <= 1 or force) and user.last_rescue_date_utc != today_utc and user.leetcode_session:
-                logger.info(f"{user_identifier}: Final hour before reset ({time_left['hours']}h {time_left['minutes']}m left). Executing Auto-Rescue...")
+                logger.info(f"{user_identifier}: Final hour before 05:30 AM IST reset ({time_left['time_display']} left). Executing Auto-Rescue...")
                 rescue_res = execute_auto_rescue(user, force=force)
                 if rescue_res.get("success"):
                     stats["auto_rescued"] = stats.get("auto_rescued", 0) + 1

@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db, limiter
 from app.routes import main
 from app.services.leetcode_checker import check_daily_activity, LeetCodeCheckerError
+from app.services.time_utils import get_time_remaining_until_reset, format_ist_date
 
 ACTIVITY_CHECK_COOLDOWN = 60
 
@@ -34,10 +35,13 @@ def dashboard():
         if 0 <= elapsed < ACTIVITY_CHECK_COOLDOWN:
             cooldown_remaining = ACTIVITY_CHECK_COOLDOWN - elapsed
 
+    time_info = get_time_remaining_until_reset()
+
     return render_template(
         "dashboard.html",
         user=current_user,
         cooldown_remaining=cooldown_remaining,
+        time_info=time_info,
     )
 
 
@@ -113,18 +117,21 @@ def check_activity():
     except SQLAlchemyError:
         db.session.rollback()
 
+    time_info = get_time_remaining_until_reset()
+    date_ist_str = time_info.get("date_ist_str") or format_ist_date()
+
     if result["active_today"]:
         flash(
-            f"Activity detected for {result['checked_date_utc']} "
-            f"(UTC): {result['submissions_today']} submission(s). "
+            f"Activity detected for {date_ist_str} (IST): "
+            f"{result['submissions_today']} submission(s). "
             f"Current streak: {result['current_streak']} day(s)!",
             "success",
         )
     else:
         flash(
-            f"No activity detected yet for {result['checked_date_utc']} "
-            f"(UTC). Streak is at risk! "
-            f"Current streak: {result['current_streak']} day(s).",
+            f"No activity detected yet for {date_ist_str} (IST). "
+            f"Streak is at risk! Solve before 05:30 AM IST to keep your "
+            f"{result['current_streak']}-day streak alive.",
             "warning",
         )
 

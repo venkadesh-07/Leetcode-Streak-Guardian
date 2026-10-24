@@ -351,14 +351,14 @@ def _notify_rescue_event(user, success: bool, problem_slug: str, detail: dict):
                 f"⚠️ <b>STREAK AUTO-RESCUE FAILED!</b>\n\n"
                 f"The Guardian tried to auto-submit your backup problem (<b>{problem_slug}</b>), but LeetCode returned an error:\n"
                 f"<code>{err_msg}</code>\n\n"
-                f"⏰ <b>Action Required:</b> Please solve and submit a problem manually on LeetCode immediately before UTC midnight!"
+                f"⏰ <b>Action Required:</b> Please solve and submit a problem manually on LeetCode immediately before 05:30 AM IST!"
             )
             email_subj = f"⚠️ [ACTION REQUIRED] Auto-Rescue Failed for '{problem_slug}'"
             email_body = (
                 f"Emergency Streak Airbag Warning:\n\n"
                 f"We attempted to submit your backup solution for '{problem_slug}', but the submission failed:\n\n"
                 f"Reason: {err_msg}\n\n"
-                f"Please log into LeetCode and solve today's problem manually before 23:59 UTC to keep your streak alive!"
+                f"Please log into LeetCode and solve today's problem manually before 05:30 AM IST to keep your streak alive!"
             )
 
         notifications = {"telegram": "not configured", "email": "not configured"}

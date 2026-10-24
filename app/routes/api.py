@@ -159,15 +159,11 @@ def get_streak_status_api():
     today_utc = now_utc.date().isoformat()
     now_ts = int(time.time())
 
-    # Calculate hours and minutes remaining before UTC midnight
-    midnight_utc = datetime.combine(
-        now_utc.date() + timedelta(days=1),
-        datetime.min.time(),
-        tzinfo=timezone.utc,
-    )
-    seconds_left = max(0, int((midnight_utc - now_utc).total_seconds()))
-    hours_left = seconds_left // 3600
-    minutes_left = (seconds_left % 3600) // 60
+    from app.services.time_utils import get_time_remaining_until_reset, format_ist_date
+    time_info = get_time_remaining_until_reset()
+    hours_left = time_info["hours"]
+    minutes_left = time_info["minutes"]
+    today_ist = time_info.get("date_ist_str") or format_ist_date()
 
     # Auto-refresh if requested or if today hasn't been checked yet
     refresh_requested = request.args.get("refresh", "").lower() in ("true", "1")
@@ -201,7 +197,7 @@ def get_streak_status_api():
         alert_msg = (
             f"🔥 LeetCode Streak at Risk!\n"
             f"You haven't solved a problem today.\n"
-            f"Keep your {streak_count}-day streak alive! ({hours_left}h {minutes_left}m remaining)"
+            f"Keep your {streak_count}-day streak alive! ({time_info['time_display']} remaining before 05:30 AM IST reset)"
         )
         alert_needed = True
     else:
@@ -222,11 +218,14 @@ def get_streak_status_api():
             "submissions_today": submissions,
             "active_today": is_active,
             "last_checked_date_utc": user.last_checked_date_utc or today_utc,
+            "date_ist": today_ist,
         },
         "time_remaining": {
             "hours": hours_left,
             "minutes": minutes_left,
-            "formatted": f"{hours_left}h {minutes_left}m left today",
+            "formatted": f"{time_info['time_display']} left before 05:30 AM IST reset",
+            "reset_deadline_ist": "05:30 AM IST",
+            "timezone": "IST",
         },
         "alert_needed": alert_needed,
         "message": alert_msg,
