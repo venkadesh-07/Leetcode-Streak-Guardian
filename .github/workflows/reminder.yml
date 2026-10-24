@@ -1,13 +1,8 @@
 name: Daily Streak Reminder Check
 
+# Automated scheduling is managed with 100% precision by cron-job.org via Render webhooks.
+# This GitHub Actions workflow is preserved for manual testing via the "Run workflow" button.
 on:
-  schedule:
-    # Schedule in Indian Standard Time (IST): 08:20 AM, 12:20 PM, 04:20 PM, 08:20 PM, 01:20 AM IST
-    # Cron in UTC (GitHub Actions requirement): 02:50, 06:50, 10:50, 14:50, 19:50 UTC (5 runs/day)
-    - cron: '50 2,6,10,14,19 * * *'
-    # Emergency Auto-Rescue Airbag Run (IST): 04:10 AM IST (80 minutes before the 05:30 AM IST daily reset)
-    # Cron in UTC: 22:40 UTC
-    - cron: '40 22 * * *'
   workflow_dispatch:
     inputs:
       force:
