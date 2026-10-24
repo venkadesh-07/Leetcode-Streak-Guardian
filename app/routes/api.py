@@ -152,7 +152,7 @@ def trigger_cron_auto_rescue():
 
     from app.services.time_utils import get_time_remaining_until_reset
     from app.services.rescue_service import execute_auto_rescue
-    from app.services.leetcode_service import fetch_user_recent_activity
+    from app.services.leetcode_checker import check_daily_activity
     from app.models import User
     from app.extensions import db
 
@@ -169,7 +169,7 @@ def trigger_cron_auto_rescue():
     statuses = []
 
     for user in users:
-        activity = fetch_user_recent_activity(user.leetcode_username)
+        activity = check_daily_activity(user.leetcode_username)
         submissions = activity.get("submissions_today", 0)
 
         # Trigger if 0 submissions and (<= 85 mins before reset or forced)
