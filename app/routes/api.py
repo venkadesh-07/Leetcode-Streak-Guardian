@@ -172,17 +172,21 @@ def trigger_cron_auto_rescue():
         activity = check_daily_activity(user.leetcode_username)
         submissions = activity.get("submissions_today", 0)
 
-        # Trigger if 0 submissions and (<= 85 mins before reset or forced)
-        if submissions == 0:
-            if (minutes_left <= 85 or force) and user.last_rescue_date_utc != today_utc and user.leetcode_session:
+        # Trigger if (0 submissions and emergency window <= 85 mins) OR if force test is requested
+        should_rescue = (submissions == 0 and minutes_left <= 85 and user.last_rescue_date_utc != today_utc) or force
+        if should_rescue:
+            if user.leetcode_session and user.leetcode_csrf_token:
                 res = execute_auto_rescue(user, force=force)
                 if res.get("success"):
                     rescued += 1
-                statuses.append({"user": user.leetcode_username, "action": "auto-rescue executed", "success": res.get("success")})
+                statuses.append({"user": user.leetcode_username, "action": "auto-rescue executed", "result": res})
             else:
-                statuses.append({"user": user.leetcode_username, "action": "airbag standing by (not in emergency window or already rescued)", "minutes_left": minutes_left})
+                statuses.append({"user": user.leetcode_username, "action": "missing cookies in profile"})
         else:
-            statuses.append({"user": user.leetcode_username, "action": "already protected", "submissions_today": submissions})
+            if submissions > 0:
+                statuses.append({"user": user.leetcode_username, "action": "already protected (submissions > 0)", "submissions_today": submissions})
+            else:
+                statuses.append({"user": user.leetcode_username, "action": "airbag standing by (not in emergency window)", "minutes_left": minutes_left})
 
     return jsonify({
         "status": "success",

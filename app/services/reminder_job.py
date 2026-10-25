@@ -88,11 +88,10 @@ def run_reminder_check(force=False):
         user.is_active_today = result.get("active_today", False)
         user.last_checked_date_utc = today_utc
 
-        # Determine target submission threshold (default: 3 submissions for testing, configurable via DAILY_SUBMISSION_GOAL)
+        # Determine target submission threshold (default: 1 submission to protect streak, configurable via DAILY_SUBMISSION_GOAL)
         from flask import current_app, has_app_context
         is_testing = (has_app_context() and current_app.config.get("TESTING")) or os.environ.get("FLASK_ENV") == "testing"
-        default_goal = "1" if is_testing else "3"
-        target_goal = int(os.environ.get("DAILY_SUBMISSION_GOAL", default_goal))
+        target_goal = int(os.environ.get("DAILY_SUBMISSION_GOAL", "1"))
         cooldown_seconds = int(os.environ.get("REMINDER_COOLDOWN_SECONDS", "14400" if is_testing else "0"))
         submissions = result.get("submissions_today", 0)
 
@@ -116,9 +115,9 @@ def run_reminder_check(force=False):
 
         if submissions >= target_goal:
             stats["already_protected"] += 1
-            logger.info(f"{user_identifier}: Target met today ({submissions}/{target_goal} submissions). No alert needed.")
+            logger.info(f"{user_identifier}: Streak protected today ({submissions} submissions). No alert needed.")
         else:
-            # Submissions are less than target_goal (e.g. < 3)! Check anti-spam cooldown if enabled
+            # Submissions are less than target_goal (< 1)! Check anti-spam cooldown if enabled
             cooldown_active = (
                 cooldown_seconds > 0
                 and not force
