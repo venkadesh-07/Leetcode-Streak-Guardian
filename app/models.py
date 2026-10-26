@@ -106,14 +106,36 @@ class User(UserMixin, db.Model):
         nullable=False,
         default=False,
     )
-    leetcode_session = db.Column(
+    _leetcode_session = db.Column(
+        "leetcode_session",
         db.Text,
         nullable=True,
     )
-    leetcode_csrf_token = db.Column(
-        db.String(255),
+    _leetcode_csrf_token = db.Column(
+        "leetcode_csrf_token",
+        db.Text,
         nullable=True,
     )
+
+    @property
+    def leetcode_session(self):
+        from app.services.crypto_utils import decrypt_cookie
+        return decrypt_cookie(self._leetcode_session)
+
+    @leetcode_session.setter
+    def leetcode_session(self, val):
+        from app.services.crypto_utils import encrypt_cookie
+        self._leetcode_session = encrypt_cookie(val)
+
+    @property
+    def leetcode_csrf_token(self):
+        from app.services.crypto_utils import decrypt_cookie
+        return decrypt_cookie(self._leetcode_csrf_token)
+
+    @leetcode_csrf_token.setter
+    def leetcode_csrf_token(self, val):
+        from app.services.crypto_utils import encrypt_cookie
+        self._leetcode_csrf_token = encrypt_cookie(val)
     rescue_problem_slug = db.Column(
         db.String(100),
         nullable=False,
