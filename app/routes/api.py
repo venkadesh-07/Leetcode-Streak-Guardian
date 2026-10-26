@@ -21,6 +21,7 @@ ACTIVITY_CHECK_COOLDOWN = 60
 
 
 @main.route("/api/telegram/check-link-status", methods=["GET"])
+@limiter.limit("30 per minute")
 def check_telegram_link_status():
     """
     Polled by settings page when user clicks 'Connect with Telegram'.
@@ -81,6 +82,7 @@ def refresh_telegram_pin():
 
 @main.route("/api/telegram/webhook", methods=["POST"])
 @csrf.exempt
+@limiter.limit("60 per minute")
 def telegram_webhook():
     """Real-time Telegram Webhook endpoint."""
     update = request.get_json(silent=True) or {}
