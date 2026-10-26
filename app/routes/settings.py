@@ -131,49 +131,55 @@ def settings():
     )
 
 
-@main.route("/settings/test-email", methods=["POST"])
+@main.route("/settings/test-email", methods=["GET", "POST"])
 @login_required
 @limiter.limit("5 per minute")
 def send_test_email():
     """Send an instant sample streak reminder email to the user's configured address."""
+    if request.method == "GET":
+        return redirect(url_for("main.settings"))
+
     target_email = current_user.reminder_email or current_user.email
     if not target_email:
         flash("No email address configured to send a test alert.", "error")
         return redirect(url_for("main.settings"))
 
-    today_utc = datetime.now(timezone.utc).date().isoformat()
-    res = send_streak_reminder(
-        user=current_user,
-        submissions_today=current_user.today_submissions or 0,
-        current_streak=current_user.current_streak or 0,
-        date_utc=today_utc,
-    )
+    try:
+        today_utc = datetime.now(timezone.utc).date().isoformat()
+        res = send_streak_reminder(
+            user=current_user,
+            submissions_today=current_user.today_submissions or 0,
+            current_streak=current_user.current_streak or 0,
+            date_utc=today_utc,
+        )
 
-    if res.get("success"):
-        if res.get("mode") == "simulated":
-            flash(
-                f"ℹ️ Email delivery was simulated (neither BREVO_API_KEY nor SMTP_HOST is configured). Target: {target_email}.",
-                "info",
-            )
+        if res.get("success"):
+            if res.get("mode") == "simulated":
+                flash(
+                    f"ℹ️ Email delivery was simulated (neither BREVO_API_KEY nor SMTP_HOST is configured). Target: {target_email}.",
+                    "info",
+                )
+            else:
+                channel_desc = " via Brevo HTTPS" if res.get("mode") == "brevo" else ""
+                flash(
+                    f"Test alert email dispatched successfully{channel_desc} to {target_email}!",
+                    "success",
+                )
         else:
-            channel_desc = " via Brevo HTTPS" if res.get("mode") == "brevo" else ""
-            flash(
-                f"Test alert email dispatched successfully{channel_desc} to {target_email}!",
-                "success",
-            )
-    else:
-        err_msg = str(res.get("error", ""))
-        if "Network is unreachable" in err_msg or "101" in err_msg:
-            flash(
-                "⚠️ Outbound SMTP ports (587/465) are blocked by Render's free tier ([Errno 101] Network is unreachable). "
-                "Add BREVO_API_KEY to your Render Dashboard ➔ Environment to deliver emails over HTTPS (Port 443) without port blocks!",
-                "warning",
-            )
-        else:
-            flash(
-                f"Failed to dispatch test email: {err_msg}",
-                "error",
-            )
+            err_msg = str(res.get("error", ""))
+            if "Network is unreachable" in err_msg or "101" in err_msg:
+                flash(
+                    "⚠️ Outbound SMTP ports (587/465) are blocked by Render's free tier ([Errno 101] Network is unreachable). "
+                    "Add BREVO_API_KEY to your Render Dashboard ➔ Environment to deliver emails over HTTPS (Port 443) without port blocks!",
+                    "warning",
+                )
+            else:
+                flash(
+                    f"Failed to dispatch test email: {err_msg}",
+                    "error",
+                )
+    except Exception as exc:
+        flash(f"Error while dispatching test email: {exc}", "error")
 
     return redirect(url_for("main.settings"))
 

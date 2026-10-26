@@ -91,6 +91,7 @@ def telegram_webhook():
 
 @main.route("/api/cron/check-reminders", methods=["GET", "POST"])
 @csrf.exempt
+@limiter.limit("20 per minute")
 def trigger_cron_reminders():
     """
     Secure webhook endpoint called by external scheduler (e.g. GitHub Actions).
@@ -130,6 +131,7 @@ def trigger_cron_reminders():
 
 @main.route("/api/cron/auto-rescue", methods=["GET", "POST"])
 @csrf.exempt
+@limiter.limit("20 per minute")
 def trigger_cron_auto_rescue():
     """
     Dedicated webhook endpoint specifically for the Emergency Auto-Rescue Airbag.

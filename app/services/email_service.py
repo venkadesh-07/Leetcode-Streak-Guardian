@@ -207,9 +207,13 @@ def send_streak_reminder(user, submissions_today, current_streak, date_utc):
     Send a streak risk notification email to the user's configured reminder email
     with dynamic time-remaining urgency in Indian Standard Time (IST).
     """
-    recipient = user.reminder_email
+    recipient = getattr(user, "reminder_email", None) or getattr(user, "email", None)
     if not recipient:
-        raise ValueError("User does not have a configured reminder email.")
+        return {
+            "success": False,
+            "mode": "error",
+            "error": "User does not have a configured email address.",
+        }
 
     base_url = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5001").rstrip("/")
     time_info = get_time_remaining_until_reset()
