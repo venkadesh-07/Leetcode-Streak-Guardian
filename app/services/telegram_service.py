@@ -12,6 +12,12 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+# Security: In-memory sliding window for PIN attempt rate limiting
+_PIN_FAILED_ATTEMPTS = {}  # {chat_id: [ts1, ts2, ...]}
+_PIN_LOCKOUTS = {}         # {chat_id: lockout_expiry_ts}
+MAX_PIN_ATTEMPTS = 5
+PIN_LOCKOUT_SECONDS = 900  # 15 minutes lockout after 5 consecutive failures
+
 
 def get_telegram_bot_token() -> str:
     """Retrieve the Telegram bot API token strictly from environment or app config."""
@@ -243,6 +249,18 @@ def process_telegram_update(item: dict) -> dict:
     # Matches patterns like: "842190", "842 190", "842-190", "/link 842190", "/pin 842190", "/start 842190"
     pin_match = re.search(r"^(?:/(?:start|link|pin)[=\s]+)?\s*(\d{3})[\s-]?(\d{3})\s*$", text)
     if pin_match:
+        # Security: Check if this chat is locked out from brute-force attempts
+        lockout_expiry = _PIN_LOCKOUTS.get(chat_id, 0)
+        if lockout_expiry > now_ts:
+            mins_left = max(1, int((lockout_expiry - now_ts) / 60))
+            send_telegram_message(
+                chat_id,
+                f"🚫 <b>Too many failed PIN attempts.</b>\n\n"
+                f"This chat has been temporarily locked from pairing attempts for security. "
+                f"Please wait <b>{mins_left} minute(s)</b> before trying again."
+            )
+            return {"handled": True, "action": "pin_locked_out"}
+
         pin_code = f"{pin_match.group(1)}{pin_match.group(2)}"
         matched_user = User.query.filter_by(telegram_pin=pin_code).first()
 
@@ -254,6 +272,10 @@ def process_telegram_update(item: dict) -> dict:
                     "Please refresh your Streak Guardian Settings page on the website to generate a fresh 6-digit PIN."
                 )
                 return {"handled": True, "action": "expired_pin"}
+
+            # Success! Reset failed attempts for this chat
+            _PIN_FAILED_ATTEMPTS.pop(chat_id, None)
+            _PIN_LOCKOUTS.pop(chat_id, None)
 
             # Connect user to this Telegram Chat without unlinking friends (Option B: Shared Chat Support)
             matched_user.telegram_chat_id = chat_id
@@ -271,12 +293,28 @@ def process_telegram_update(item: dict) -> dict:
             send_telegram_message(chat_id, welcome_text)
             return {"handled": True, "action": "linked", "user_id": matched_user.id, "mode": "pin"}
         else:
-            send_telegram_message(
-                chat_id,
-                "⚠️ <b>Invalid pairing PIN.</b>\n\n"
-                "Please verify the 6-digit PIN on your Streak Guardian Settings page and try again."
-            )
-            return {"handled": True, "action": "invalid_pin"}
+            # Track failed attempt for this chat
+            recent = [t for t in _PIN_FAILED_ATTEMPTS.get(chat_id, []) if (now_ts - t) < 600]
+            recent.append(now_ts)
+            _PIN_FAILED_ATTEMPTS[chat_id] = recent
+
+            if len(recent) >= MAX_PIN_ATTEMPTS:
+                _PIN_LOCKOUTS[chat_id] = now_ts + PIN_LOCKOUT_SECONDS
+                _PIN_FAILED_ATTEMPTS.pop(chat_id, None)
+                send_telegram_message(
+                    chat_id,
+                    f"🚫 <b>Too many failed PIN attempts ({MAX_PIN_ATTEMPTS}/{MAX_PIN_ATTEMPTS}).</b>\n\n"
+                    f"For your security, PIN pairing for this chat has been locked for 15 minutes."
+                )
+                return {"handled": True, "action": "pin_locked_out"}
+            else:
+                remaining = MAX_PIN_ATTEMPTS - len(recent)
+                send_telegram_message(
+                    chat_id,
+                    f"⚠️ <b>Invalid pairing PIN ({remaining} attempt(s) remaining).</b>\n\n"
+                    f"Please verify the 6-digit PIN on your Streak Guardian Settings page and try again."
+                )
+                return {"handled": True, "action": "invalid_pin"}
 
     # Extract token from various legacy or deep-link formats:
     # 1. /start <token> or /link <token> or /start=<token> or /link=<token>
