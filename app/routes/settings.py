@@ -3,10 +3,13 @@ Settings and notification preference routes for LeetCode Streak Guardian.
 Handles profile settings, alert preferences, test alerts, and Telegram disconnect.
 """
 
+import logging
 from datetime import datetime, timezone
-from flask import flash, redirect, render_template, url_for
+from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
+
+logger = logging.getLogger(__name__)
 
 from app.extensions import db, limiter
 from app.forms import SettingsForm
@@ -156,12 +159,15 @@ def send_test_email():
         return redirect(url_for("main.settings"))
 
     try:
-        from app.services.leetcode_checker import check_daily_activity
-        # Fetch fresh streak metrics from LeetCode for the test alert
-        activity = check_daily_activity(current_user.leetcode_username)
-        current_user.current_streak = activity.get("current_streak", 0)
-        current_user.today_submissions = activity.get("submissions_today", 0)
-        current_user.is_active_today = activity.get("active_today", False)
+        try:
+            from app.services.leetcode_checker import check_daily_activity
+            # Fetch fresh streak metrics from LeetCode for the test alert
+            activity = check_daily_activity(current_user.leetcode_username)
+            current_user.current_streak = activity.get("current_streak", 0)
+            current_user.today_submissions = activity.get("submissions_today", 0)
+            current_user.is_active_today = activity.get("active_today", False)
+        except Exception as leet_err:
+            logger.warning(f"Could not refresh live activity for test email: {leet_err}")
 
         today_utc = datetime.now(timezone.utc).date().isoformat()
         res = send_streak_reminder(
