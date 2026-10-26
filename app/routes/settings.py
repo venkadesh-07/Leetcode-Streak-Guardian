@@ -22,11 +22,18 @@ def settings():
     form = SettingsForm(obj=current_user)
 
     if form.validate_on_submit():
-        current_user.leetcode_username = (
-            form.leetcode_username.data.strip()
-            if form.leetcode_username.data
-            else None
-        )
+        if form.leetcode_username.data and form.leetcode_username.data.strip():
+            new_username = form.leetcode_username.data.strip()
+            if current_user.leetcode_username != new_username:
+                current_user.leetcode_username = new_username
+                current_user.current_streak = 0
+                current_user.today_submissions = 0
+                current_user.is_active_today = None
+        else:
+            current_user.leetcode_username = None
+            current_user.current_streak = 0
+            current_user.today_submissions = 0
+            current_user.is_active_today = None
 
         current_user.reminder_email = (
             form.reminder_email.data.strip().lower()
@@ -139,12 +146,23 @@ def send_test_email():
     if request.method == "GET":
         return redirect(url_for("main.settings"))
 
+    if not current_user.leetcode_username:
+        flash("Please enter and save your LeetCode username first before testing reminders.", "warning")
+        return redirect(url_for("main.settings"))
+
     target_email = current_user.reminder_email or current_user.email
     if not target_email:
         flash("No email address configured to send a test alert.", "error")
         return redirect(url_for("main.settings"))
 
     try:
+        from app.services.leetcode_checker import check_daily_activity
+        # Fetch fresh streak metrics from LeetCode for the test alert
+        activity = check_daily_activity(current_user.leetcode_username)
+        current_user.current_streak = activity.get("current_streak", 0)
+        current_user.today_submissions = activity.get("submissions_today", 0)
+        current_user.is_active_today = activity.get("active_today", False)
+
         today_utc = datetime.now(timezone.utc).date().isoformat()
         res = send_streak_reminder(
             user=current_user,
@@ -189,10 +207,23 @@ def send_test_email():
 @limiter.limit("5 per minute")
 def send_test_telegram():
     """Send an instant sample streak reminder message to the user's configured Telegram Chat ID."""
+    if not current_user.leetcode_username:
+        flash("Please enter and save your LeetCode username first before testing reminders.", "warning")
+        return redirect(url_for("main.settings"))
+
     chat_id = current_user.telegram_chat_id
     if not chat_id:
         flash("No Telegram Chat ID configured to send a test alert.", "error")
         return redirect(url_for("main.settings"))
+
+    try:
+        from app.services.leetcode_checker import check_daily_activity
+        activity = check_daily_activity(current_user.leetcode_username)
+        current_user.current_streak = activity.get("current_streak", 0)
+        current_user.today_submissions = activity.get("submissions_today", 0)
+        current_user.is_active_today = activity.get("active_today", False)
+    except Exception:
+        pass
 
     today_utc = datetime.now(timezone.utc).date().isoformat()
     res = send_telegram_streak_reminder(
