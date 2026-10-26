@@ -13,16 +13,13 @@ import requests
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_BOT_TOKEN = "8669464605:AAHPnXQzw3Ia4xeK2EFZV0VyTZwn1SoLgT8"
-
-
 def get_telegram_bot_token() -> str:
-    """Retrieve the Telegram bot API token from environment with production fallback."""
+    """Retrieve the Telegram bot API token strictly from environment or app config."""
     from flask import current_app, has_app_context
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     if not token and has_app_context():
         token = current_app.config.get("TELEGRAM_BOT_TOKEN", "").strip()
-    return token or DEFAULT_BOT_TOKEN
+    return token
 
 
 def validate_telegram_chat_id(chat_id: str) -> bool:
