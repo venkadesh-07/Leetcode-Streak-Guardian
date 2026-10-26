@@ -57,11 +57,16 @@ def normalize_database_url(url):
 def create_app(test_config=None):
     app = Flask(__name__)
 
-    secret_key = os.environ.get("SECRET_KEY", "default-dev-secret-key-for-testing")
-    if not secret_key and not test_config:
-        raise RuntimeError("SECRET_KEY is missing from the environment.")
-
     is_production = bool(os.environ.get("RENDER")) or os.environ.get("FLASK_ENV") == "production"
+
+    secret_key = os.environ.get("SECRET_KEY")
+    if is_production and (not secret_key or secret_key in ("default-dev-secret-key-for-testing", "production-streak-guardian-default-key-32b")):
+        raise RuntimeError(
+            "CRITICAL SECURITY ERROR: SECRET_KEY must be explicitly configured with a secure random secret in production environments."
+        )
+
+    if not secret_key:
+        secret_key = "default-dev-secret-key-for-testing"
 
     if test_config:
         app.config.update(

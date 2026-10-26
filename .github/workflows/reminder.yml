@@ -33,20 +33,30 @@ jobs:
 
       - name: Run Streak Guardian Reminder Job
         env:
-          SECRET_KEY: ${{ secrets.SECRET_KEY || 'production-streak-guardian-default-key-32b' }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
           SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
-          SMTP_USER: ${{ secrets.SMTP_USER || 'venkadesh3948a@gmail.com' }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMTP_USE_TLS: 'true'
-          REMINDER_SENDER_EMAIL: ${{ secrets.REMINDER_SENDER_EMAIL || 'venkadesh3948a@gmail.com' }}
+          REMINDER_SENDER_EMAIL: ${{ secrets.REMINDER_SENDER_EMAIL }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           echo "======================================================="
           echo "Executing Streak Guardian Automated Reminder Check..."
           echo "======================================================="
+
+          if [ -z "$SECRET_KEY" ]; then
+            echo "❌ ERROR: SECRET_KEY secret is missing in GitHub Repository Secrets!"
+            echo "GitHub Actions requires SECRET_KEY to decrypt user session tokens and protect data."
+            echo "Go to Settings -> Secrets and variables -> Actions -> New repository secret"
+            echo "Name: SECRET_KEY"
+            exit 1
+          else
+            echo "✅ SECRET_KEY is configured."
+          fi
 
           if [ -z "$DATABASE_URL" ]; then
             echo "❌ ERROR: DATABASE_URL secret is missing in GitHub Repository Secrets!"
