@@ -161,6 +161,13 @@ def create_app(test_config=None):
                     ("last_rescue_status", "VARCHAR(100)"),
                 ]
                 with db.engine.connect() as conn:
+                    try:
+                        conn.execute(text('ALTER TABLE "user" ENABLE ROW LEVEL SECURITY;'))
+                        conn.execute(text('ALTER TABLE alembic_version ENABLE ROW LEVEL SECURITY;'))
+                        conn.commit()
+                    except Exception:
+                        pass
+
                     for col_name, col_type in columns:
                         try:
                             conn.execute(text(f'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS {col_name} {col_type};'))
