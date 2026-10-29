@@ -16,6 +16,55 @@ from app.services.time_utils import get_time_remaining_until_reset, format_ist_d
 ACTIVITY_CHECK_COOLDOWN = 60
 
 
+def get_streak_milestones(streak: int) -> dict:
+    """Calculate streak milestones and progress towards the next goal."""
+    milestones = [
+        {"days": 7, "name": "Consistent Spark", "icon": "🔥"},
+        {"days": 30, "name": "Monthly Master", "icon": "⚡"},
+        {"days": 100, "name": "Centurion", "icon": "💎"},
+        {"days": 365, "name": "Year of Code", "icon": "👑"},
+    ]
+    current = max(0, streak or 0)
+    next_m = None
+    prev_days = 0
+
+    for m in milestones:
+        is_unlocked = current >= m["days"]
+        m["unlocked"] = is_unlocked
+        if not is_unlocked and next_m is None:
+            next_m = m
+            total_span = m["days"] - prev_days
+            curr_span = current - prev_days
+            percent = int((curr_span / total_span) * 100) if total_span > 0 else 0
+            m["progress_percent"] = max(0, min(100, percent))
+            m["days_remaining"] = m["days"] - current
+        prev_days = m["days"]
+
+    if next_m is None:
+        progress_info = {
+            "target_days": 365,
+            "target_name": "Legend",
+            "target_icon": "👑",
+            "percent": 100,
+            "days_left": 0,
+            "completed": True,
+        }
+    else:
+        progress_info = {
+            "target_days": next_m["days"],
+            "target_name": next_m["name"],
+            "target_icon": next_m["icon"],
+            "percent": next_m["progress_percent"],
+            "days_left": next_m["days_remaining"],
+            "completed": False,
+        }
+
+    return {
+        "tiers": milestones,
+        "progress": progress_info,
+    }
+
+
 @main.route("/dashboard")
 @login_required
 def dashboard():
@@ -36,12 +85,14 @@ def dashboard():
             cooldown_remaining = ACTIVITY_CHECK_COOLDOWN - elapsed
 
     time_info = get_time_remaining_until_reset()
+    milestone_info = get_streak_milestones(current_user.current_streak or 0)
 
     return render_template(
         "dashboard.html",
         user=current_user,
         cooldown_remaining=cooldown_remaining,
         time_info=time_info,
+        milestones=milestone_info,
     )
 
 

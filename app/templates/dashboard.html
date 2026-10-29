@@ -35,11 +35,44 @@
         <section class="card streak-card">
             <h2>Daily Streak Status</h2>
             {% if not user.leetcode_username %}
-                <div class="status-box status-warning">
-                    <p class="status-title">⚠️ LeetCode username not configured!</p>
-                    <p>Add your public LeetCode username in settings to begin tracking your streak.</p>
-                    <div style="margin-top: 12px;">
-                        <a href="{{ url_for('main.settings') }}" class="btn btn-primary">Configure LeetCode Username</a>
+                <div class="onboarding-empty-state">
+                    <div class="onboarding-hero">
+                        <span class="onboarding-emoji">🔥</span>
+                        <h3 class="onboarding-title">Welcome to Streak Guardian!</h3>
+                        <p class="onboarding-subtitle">You're one minute away from autonomous streak protection. Follow the steps below to get started.</p>
+                    </div>
+
+                    <div class="onboarding-steps">
+                        <div class="onboarding-step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <strong>Add your LeetCode username</strong>
+                                <p>Your public username (e.g. <code>tour_de_force</code>). We never ask for your password.</p>
+                            </div>
+                        </div>
+                        <div class="onboarding-step-connector"></div>
+                        <div class="onboarding-step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <strong>Choose a notification channel</strong>
+                                <p>Enable Email alerts or connect your Telegram bot for real-time warnings.</p>
+                            </div>
+                        </div>
+                        <div class="onboarding-step-connector"></div>
+                        <div class="onboarding-step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <strong>Enable 4-hour monitoring</strong>
+                                <p>Turn on autonomous streak checks. Guardian will alert you before the 05:30 AM IST reset.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="onboarding-cta">
+                        <a href="{{ url_for('main.settings') }}" class="btn btn-primary btn-lg">
+                            ⚙️ Open Settings to Get Started →
+                        </a>
+                        <p class="onboarding-cta-hint">Takes less than 60 seconds</p>
                     </div>
                 </div>
             {% else %}
@@ -53,12 +86,48 @@
                         <span class="metric-label">Submissions Today (IST)</span>
                     </div>
                     {% if time_info %}
-                    <div class="metric-item">
-                        <span class="metric-number">⏰ {{ time_info.time_display }}</span>
-                        <span class="metric-label">Left (05:30 AM IST Reset)</span>
+                    <div class="metric-item" id="countdown-metric" data-reset-epoch="{{ time_info.reset_epoch_ms }}" data-urgency="{{ time_info.urgency_level }}">
+                        <span class="metric-number" id="countdown-display">⏰ {{ time_info.time_display }}</span>
+                        <span class="metric-label">Left Until 05:30 AM IST Reset</span>
                     </div>
                     {% endif %}
                 </div>
+
+                {% if milestones %}
+                <div class="milestones-container">
+                    <div class="milestones-header">
+                        <span class="milestones-title">🏆 Streak Milestones</span>
+                        {% if not milestones.progress.completed %}
+                            <span class="milestones-target-hint">
+                                Next: <strong>{{ milestones.progress.target_icon }} {{ milestones.progress.target_name }}</strong> ({{ milestones.progress.days_left }}d left)
+                            </span>
+                        {% else %}
+                            <span class="milestones-target-hint" style="color: #fbbf24;">
+                                👑 All Core Milestones Unlocked!
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="milestones-progress-bar-wrap">
+                        <div class="milestones-progress-bar" style="width: {{ milestones.progress.percent }}%;"></div>
+                    </div>
+
+                    <div class="milestones-badges-row">
+                        {% for m in milestones.tiers %}
+                            <div class="milestone-badge {% if m.unlocked %}is-unlocked{% else %}is-locked{% endif %}" title="{{ m.name }} ({{ m.days }} Days)">
+                                <span class="badge-icon">{{ m.icon }}</span>
+                                <div class="badge-info">
+                                    <span class="badge-days">{{ m.days }}d</span>
+                                    <span class="badge-name">{{ m.name }}</span>
+                                </div>
+                                {% if m.unlocked %}
+                                    <span class="badge-check">✓</span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
 
                 <div class="status-box {% if user.is_active_today is true %}status-protected{% elif user.is_active_today is false %}status-risk{% else %}status-idle{% endif %}">
                     {% if user.is_active_today is true %}

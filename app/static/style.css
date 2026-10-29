@@ -213,6 +213,44 @@ h1 {
     transform: translateY(-2px);
 }
 
+/* ── Live Countdown Urgency States ───────────────────────────────────────── */
+/* Applied dynamically by dashboard.js based on seconds remaining */
+
+.countdown-warning {
+    /* > 4 hours: default amber — no override needed */
+}
+
+.countdown-urgent {
+    border-color: rgba(245, 158, 11, 0.55);
+    background: rgba(245, 158, 11, 0.07);
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
+}
+
+.countdown-urgent #countdown-display {
+    background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.countdown-critical {
+    border-color: rgba(239, 68, 68, 0.6);
+    background: rgba(239, 68, 68, 0.08);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+    animation: countdown-pulse 1.5s ease-in-out infinite;
+}
+
+.countdown-critical #countdown-display {
+    background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+@keyframes countdown-pulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); }
+    50%       { box-shadow: 0 0 32px rgba(239, 68, 68, 0.45); }
+}
+/* ── End Countdown Urgency States ────────────────────────────────────────── */
+
 .metric-number {
     display: block;
     font-family: var(--font-mono);
@@ -535,7 +573,7 @@ h1 {
     font-family: var(--font-mono);
 }
 
-/* Alerts */
+/* Alerts (inline fallback — hidden when JS upgrades them to toasts) */
 .alert {
     padding: 14px 18px;
     border-radius: var(--radius-md);
@@ -547,6 +585,11 @@ h1 {
     align-items: center;
     gap: 10px;
     animation: fadeIn 0.3s ease-out;
+}
+
+/* When JS is active, inline alerts are hidden and replaced by toasts */
+.js-toasts-active .alert {
+    display: none !important;
 }
 
 @keyframes fadeIn {
@@ -571,6 +614,137 @@ h1 {
     border-color: var(--danger-border);
     color: #fca5a5;
 }
+
+/* ── Toast Notification System ───────────────────────────────────────────── */
+#toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    max-width: 380px;
+    width: calc(100vw - 48px);
+}
+
+.toast {
+    pointer-events: all;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.45;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    /* Slide in from the right */
+    animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast.toast-hiding {
+    animation: toast-out 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateX(110%); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toast-out {
+    from { opacity: 1; transform: translateX(0); max-height: 120px; margin-bottom: 0; }
+    to   { opacity: 0; transform: translateX(110%); max-height: 0; margin-bottom: -10px; }
+}
+
+/* Progress bar that drains over the auto-dismiss duration */
+.toast::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    transform-origin: left;
+    animation: toast-progress var(--toast-duration, 5s) linear forwards;
+}
+
+@keyframes toast-progress {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+}
+
+.toast-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    line-height: 1.3;
+}
+
+.toast-body {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+}
+
+.toast-close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 0 0 4px;
+    transition: opacity 0.15s;
+}
+.toast-close:hover { opacity: 1; }
+
+/* Colour variants */
+.toast-success {
+    background: rgba(6, 78, 59, 0.85);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #a7f3d0;
+}
+.toast-success::after { background: #10b981; }
+
+.toast-warning {
+    background: rgba(78, 55, 6, 0.85);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fde68a;
+}
+.toast-warning::after { background: #f59e0b; }
+
+.toast-error {
+    background: rgba(69, 10, 10, 0.85);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fecaca;
+}
+.toast-error::after { background: #ef4444; }
+
+.toast-info {
+    background: rgba(15, 40, 80, 0.85);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #bfdbfe;
+}
+.toast-info::after { background: #3b82f6; }
+
+@media (max-width: 480px) {
+    #toast-container {
+        bottom: 16px;
+        right: 16px;
+        left: 16px;
+        max-width: 100%;
+        width: auto;
+    }
+}
+/* ── End Toast Notification System ───────────────────────────────────────── */
 
 /* Form inputs & Groups */
 .form-group {
@@ -1253,5 +1427,265 @@ footer {
     outline: none;
     color: var(--brand-amber-light, #fbbf24);
 }
+
+/* ── Onboarding Empty State ───────────────────────────────────────────────── */
+.onboarding-empty-state {
+    padding: 8px 0 4px;
+}
+
+.onboarding-hero {
+    text-align: center;
+    padding: 28px 16px 24px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 28px;
+}
+
+.onboarding-emoji {
+    display: block;
+    font-size: 52px;
+    line-height: 1;
+    margin-bottom: 14px;
+    filter: drop-shadow(0 4px 16px rgba(245, 158, 11, 0.45));
+    animation: onboarding-float 3s ease-in-out infinite;
+}
+
+@keyframes onboarding-float {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-6px); }
+}
+
+.onboarding-title {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.onboarding-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.55;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+/* 3-step guide */
+.onboarding-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 28px;
+    padding: 0 4px;
+}
+
+.onboarding-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    transition: background 0.2s ease;
+}
+
+.onboarding-step:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.step-number {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--brand-gradient);
+    color: #0a0e17;
+    font-size: 14px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+    margin-top: 2px;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-content strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+}
+
+.step-content p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.onboarding-step-connector {
+    width: 2px;
+    height: 16px;
+    background: linear-gradient(to bottom, rgba(245, 158, 11, 0.4), rgba(245, 158, 11, 0.1));
+    margin-left: 31px; /* aligns with centre of .step-number */
+}
+
+/* CTA */
+.onboarding-cta {
+    text-align: center;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.onboarding-cta .btn-lg {
+    width: 100%;
+    max-width: 340px;
+    justify-content: center;
+}
+
+.onboarding-cta-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 10px;
+    margin-bottom: 0;
+}
+/* ── End Onboarding Empty State ───────────────────────────────────────────── */
+
+/* ── Streak Milestones & Achievement System ────────────────────────────────── */
+.milestones-container {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    backdrop-filter: blur(8px);
+}
+
+.milestones-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.milestones-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+}
+
+.milestones-target-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.milestones-target-hint strong {
+    color: var(--brand-amber-light);
+}
+
+.milestones-progress-bar-wrap {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 9999px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.milestones-progress-bar {
+    height: 100%;
+    background: var(--brand-gradient);
+    border-radius: 9999px;
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+.milestones-badges-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+@media (max-width: 600px) {
+    .milestones-badges-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.milestone-badge {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    transition: var(--transition-fast);
+}
+
+.milestone-badge.is-unlocked {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.28);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.milestone-badge.is-unlocked:hover {
+    background: rgba(245, 158, 11, 0.14);
+    border-color: rgba(245, 158, 11, 0.5);
+    transform: translateY(-2px);
+}
+
+.milestone-badge.is-locked {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.05);
+    opacity: 0.5;
+}
+
+.milestone-badge.is-locked:hover {
+    opacity: 0.8;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.badge-icon {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.badge-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.badge-days {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.badge-name {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.badge-check {
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 800;
+    color: #10b981;
+}
+/* ── End Streak Milestones & Achievement System ────────────────────────────── */
 
 

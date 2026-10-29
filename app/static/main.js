@@ -5,6 +5,98 @@ document.addEventListener("DOMContentLoaded", function () {
     "use strict";
 
     // ========================================================
+    // 0. TOAST NOTIFICATION SYSTEM
+    // ========================================================
+    var toastContainer = document.createElement("div");
+    toastContainer.id = "toast-container";
+    document.body.appendChild(toastContainer);
+
+    // Mark <body> so CSS hides the plain .alert fallbacks
+    document.body.classList.add("js-toasts-active");
+
+    var TOAST_ICONS = {
+        success: "✅",
+        warning: "⚠️",
+        error:   "❌",
+        info:    "ℹ️"
+    };
+
+    var TOAST_DURATIONS = {
+        success: 5000,
+        warning: 7000,
+        error:   9000,
+        info:    6000
+    };
+
+    function showToast(message, type, durationMs) {
+        type = type || "info";
+        durationMs = durationMs || TOAST_DURATIONS[type] || 5000;
+
+        var toast = document.createElement("div");
+        toast.className = "toast toast-" + type;
+        toast.style.setProperty("--toast-duration", (durationMs / 1000) + "s");
+        toast.setAttribute("role", "alert");
+        toast.setAttribute("aria-live", "polite");
+
+        var icon = document.createElement("span");
+        icon.className = "toast-icon";
+        icon.textContent = TOAST_ICONS[type] || "ℹ️";
+
+        var body = document.createElement("span");
+        body.className = "toast-body";
+        body.textContent = message;
+
+        var closeBtn = document.createElement("button");
+        closeBtn.className = "toast-close";
+        closeBtn.setAttribute("aria-label", "Dismiss");
+        closeBtn.textContent = "✕";
+
+        toast.appendChild(icon);
+        toast.appendChild(body);
+        toast.appendChild(closeBtn);
+        toastContainer.appendChild(toast);
+
+        function dismiss() {
+            if (toast.classList.contains("toast-hiding")) return;
+            toast.classList.add("toast-hiding");
+            // Remove after out-animation completes (300ms)
+            setTimeout(function () {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 320);
+        }
+
+        // Auto-dismiss after duration
+        var autoDismiss = setTimeout(dismiss, durationMs);
+
+        // Click anywhere on toast OR close button to dismiss immediately
+        toast.addEventListener("click", function () {
+            clearTimeout(autoDismiss);
+            dismiss();
+        });
+
+        return toast;
+    }
+
+    // Expose globally so other scripts can call showToast()
+    window.showToast = showToast;
+
+    // Convert existing inline Flask flash .alert elements into toasts
+    var flashAlerts = document.querySelectorAll(".alert[role='alert']");
+    flashAlerts.forEach(function (alert) {
+        var message = alert.textContent.trim();
+        if (!message) return;
+
+        // Map Flask alert category to toast type
+        var type = "info";
+        if (alert.classList.contains("alert-success")) type = "success";
+        else if (alert.classList.contains("alert-warning")) type = "warning";
+        else if (alert.classList.contains("alert-error"))   type = "error";
+
+        // Small stagger so multiple toasts don't stack at once
+        showToast(message, type);
+    });
+
+    // ========================================================
     // 1. TACTILE BUTTON RIPPLE & PRESS-DOWN EFFECT
     // ========================================================
     document.addEventListener("click", function (e) {
@@ -367,4 +459,83 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     });
+
+    // ========================================================
+    // 7. INLINE LEETCODE USERNAME VALIDATION
+    // ========================================================
+    const usernameInput = document.getElementById("leetcode-username-input");
+    const usernameHint = document.getElementById("username-validation-hint");
+
+    if (usernameInput && usernameHint) {
+        let validationTimer = null;
+        const originalValue = usernameInput.value.trim();
+
+        function showHint(message, isValid, isLoading) {
+            usernameHint.style.display = "block";
+            usernameHint.textContent = message;
+            if (isLoading) {
+                usernameHint.style.background = "rgba(100, 116, 139, 0.12)";
+                usernameHint.style.color = "var(--text-secondary)";
+                usernameHint.style.border = "1px solid rgba(100, 116, 139, 0.25)";
+            } else if (isValid) {
+                usernameHint.style.background = "rgba(16, 185, 129, 0.10)";
+                usernameHint.style.color = "#34d399";
+                usernameHint.style.border = "1px solid rgba(16, 185, 129, 0.3)";
+            } else {
+                usernameHint.style.background = "rgba(239, 68, 68, 0.10)";
+                usernameHint.style.color = "#f87171";
+                usernameHint.style.border = "1px solid rgba(239, 68, 68, 0.3)";
+            }
+        }
+
+        function hideHint() {
+            usernameHint.style.display = "none";
+            usernameHint.textContent = "";
+        }
+
+        function validateUsername(username) {
+            showHint("⏳ Checking username on LeetCode...", false, true);
+            fetch("/api/validate-username?username=" + encodeURIComponent(username), {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.valid) {
+                    showHint(data.message, true, false);
+                } else {
+                    showHint(data.message, false, false);
+                }
+            })
+            .catch(function () {
+                showHint("⚠️ Could not reach LeetCode right now. You can still save.", false, true);
+            });
+        }
+
+        // Debounced validation as user types
+        usernameInput.addEventListener("input", function () {
+            clearTimeout(validationTimer);
+            const val = usernameInput.value.trim();
+            if (!val || val === originalValue) {
+                hideHint();
+                return;
+            }
+            // Wait 600ms after user stops typing before firing
+            validationTimer = setTimeout(function () {
+                if (val.length >= 2) validateUsername(val);
+            }, 600);
+        });
+
+        // Immediate validation on blur (tab away / click out)
+        usernameInput.addEventListener("blur", function () {
+            clearTimeout(validationTimer);
+            const val = usernameInput.value.trim();
+            if (!val || val === originalValue) {
+                hideHint();
+                return;
+            }
+            if (val.length >= 2) validateUsername(val);
+        });
+    }
+
 });

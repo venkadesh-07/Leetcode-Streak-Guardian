@@ -310,6 +310,48 @@ def get_streak_status_api():
     }), 200
 
 
+@main.route("/api/validate-username", methods=["GET"])
+@login_required
+@limiter.limit("10 per minute")
+def validate_username():
+    """
+    Inline LeetCode username validation for the settings page.
+    Called via AJAX on blur of the username field.
+    Returns whether the username resolves successfully on LeetCode.
+    """
+    username = request.args.get("username", "").strip()
+    if not username:
+        return jsonify({"status": "error", "valid": False, "message": "Username is empty."}), 400
+
+    import re
+    if not re.match(r'^[a-zA-Z0-9_\-]{1,50}$', username):
+        return jsonify({
+            "status": "error",
+            "valid": False,
+            "message": "Invalid username format. Only letters, numbers, hyphens and underscores are allowed."
+        }), 200
+
+    from app.services.leetcode_checker import check_daily_activity, LeetCodeCheckerError
+    try:
+        result = check_daily_activity(username)
+        streak = result.get("current_streak", 0)
+        submissions = result.get("submissions_today", 0)
+        return jsonify({
+            "status": "success",
+            "valid": True,
+            "username": username,
+            "current_streak": streak,
+            "submissions_today": submissions,
+            "message": f"✅ Found! {streak}-day streak · {submissions} submission(s) today."
+        }), 200
+    except LeetCodeCheckerError:
+        return jsonify({
+            "status": "error",
+            "valid": False,
+            "message": "❌ Username not found or LeetCode is unreachable. Double-check the spelling."
+        }), 200
+
+
 @main.route("/health")
 @csrf.exempt
 def health():

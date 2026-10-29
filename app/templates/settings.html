@@ -34,11 +34,13 @@
                 <div class="form-group">
                     {{ form.leetcode_username.label }}
                     {{ form.leetcode_username(
+                        id="leetcode-username-input",
                         autocomplete="off",
                         maxlength="50",
                         placeholder="e.g. tour_de_force"
                     ) }}
                     <small class="form-help">Your public LeetCode username. We never ask for your password.</small>
+                    <div id="username-validation-hint" style="display: none; margin-top: 6px; font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 6px;"></div>
                     {% for error in form.leetcode_username.errors %}
                         <span class="field-error" role="alert">{{ error }}</span>
                     {% endfor %}

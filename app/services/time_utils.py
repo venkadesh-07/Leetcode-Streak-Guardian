@@ -107,4 +107,6 @@ def get_time_remaining_until_reset(now: datetime = None) -> dict:
         "badge_style": badge_style,
         "subject_tag": subject_tag,
         "date_ist_str": date_ist_str,
+        # Milliseconds since Unix epoch for the reset moment — used by the client-side live countdown.
+        "reset_epoch_ms": int(reset_utc.timestamp() * 1000),
     }
