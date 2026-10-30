@@ -111,7 +111,7 @@ def settings():
             return render_template("settings.html", form=form), 500
 
         flash("Settings saved successfully.", "success")
-        return redirect(url_for("main.dashboard"))
+        return redirect(url_for("main.settings"))
 
     # Auto-sync recent Telegram bot authorizations if user has an api_token
     token = current_user.get_or_create_api_token()

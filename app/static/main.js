@@ -448,14 +448,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 input.type = "text";
                 if (eyeOpen) eyeOpen.style.display = "none";
                 if (eyeClosed) eyeClosed.style.display = "inline-block";
-                btn.setAttribute("aria-label", "Hide password");
-                btn.style.color = "var(--brand-amber-light, #fbbf24)";
+                btn.setAttribute("aria-label", "Hide value");
+                btn.setAttribute("title", "Hide value");
+                btn.classList.add("is-revealed");
             } else {
                 input.type = "password";
                 if (eyeOpen) eyeOpen.style.display = "inline-block";
                 if (eyeClosed) eyeClosed.style.display = "none";
-                btn.setAttribute("aria-label", "Show password");
-                btn.style.color = "var(--text-muted, #94a3b8)";
+                btn.setAttribute("aria-label", "Show value");
+                btn.setAttribute("title", "Show value");
+                btn.classList.remove("is-revealed");
             }
         });
     });
