@@ -32,11 +32,15 @@ def settings():
                 current_user.current_streak = 0
                 current_user.today_submissions = 0
                 current_user.is_active_today = None
+                # Username changed — revoke verification and issue a new token
+                current_user.leetcode_verified = False
+                current_user.get_or_create_verification_token(force_refresh=True)
         else:
             current_user.leetcode_username = None
             current_user.current_streak = 0
             current_user.today_submissions = 0
             current_user.is_active_today = None
+            current_user.leetcode_verified = False
 
         current_user.reminder_email = (
             form.reminder_email.data.strip().lower()
@@ -112,6 +116,9 @@ def settings():
     # Auto-sync recent Telegram bot authorizations if user has an api_token
     token = current_user.get_or_create_api_token()
     telegram_pin = current_user.get_or_create_telegram_pin()
+    # Ensure verification token is always available for users with a username set
+    if current_user.leetcode_username:
+        current_user.get_or_create_verification_token()
     db.session.commit()
 
     import urllib.parse
@@ -138,6 +145,8 @@ def settings():
         bot_username=bot_username,
         telegram_pin=telegram_pin,
         linked_accounts_count=linked_accounts_count,
+        verification_token=current_user.verification_token,
+        leetcode_verified=current_user.leetcode_verified,
     )
 
 

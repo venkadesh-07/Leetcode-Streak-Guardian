@@ -44,6 +44,34 @@
                     {% for error in form.leetcode_username.errors %}
                         <span class="field-error" role="alert">{{ error }}</span>
                     {% endfor %}
+
+                    {# --- Ownership verification badge / challenge --- #}
+                    {% if current_user.leetcode_username %}
+                        {% if leetcode_verified %}
+                            <div class="lc-verified-badge" role="status" aria-label="LeetCode username verified">
+                                ✅ Verified Owner
+                            </div>
+                        {% elif verification_token %}
+                            <div class="lc-unverified-callout" role="region" aria-label="Verify your LeetCode username">
+                                <p class="lc-verify-title">🔐 Verify you own this account</p>
+                                <p class="lc-verify-desc">
+                                    Paste the token below into your LeetCode
+                                    <a href="https://leetcode.com/profile/" target="_blank" rel="noopener noreferrer">About Me</a>
+                                    (Settings → Edit Profile), then click <strong>Check My Bio</strong>.
+                                </p>
+                                <div class="lc-token-row">
+                                    <code id="lc-verify-token">{{ verification_token }}</code>
+                                    <button type="button" id="lc-copy-token-btn" class="btn btn-sm btn-outline" title="Copy token">
+                                        Copy
+                                    </button>
+                                </div>
+                                <button type="button" id="verify-bio-btn" class="btn btn-primary btn-sm" style="margin-top: 10px;">
+                                    ✓ Check My Bio
+                                </button>
+                                <div id="verify-bio-result" style="display:none; margin-top: 8px; font-size: 13px; font-weight: 600;"></div>
+                            </div>
+                        {% endif %}
+                    {% endif %}
                 </div>
 
                 <div class="checkbox-group" style="margin-top: 20px; margin-bottom: 24px;">

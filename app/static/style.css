@@ -1689,3 +1689,82 @@ footer {
 /* ── End Streak Milestones & Achievement System ────────────────────────────── */
 
 
+
+/* ============================================================
+   LEETCODE OWNERSHIP VERIFICATION BADGE & CHALLENGE UI
+   ============================================================ */
+
+.lc-verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 5px 12px;
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.lc-unverified-callout {
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 10px;
+}
+
+.lc-verify-title {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary, #1f2937);
+}
+
+.lc-verify-desc {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+    line-height: 1.5;
+}
+
+.lc-verify-desc a {
+    color: var(--accent, #f97316);
+    text-decoration: underline;
+}
+
+.lc-token-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#lc-verify-token {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 13px;
+    padding: 5px 10px;
+    background: var(--bg-secondary, #f3f4f6);
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 6px;
+    user-select: all;
+    letter-spacing: 0.5px;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border, #d1d5db);
+    color: var(--text-primary, #374151);
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-outline:hover {
+    background: var(--bg-secondary, #f3f4f6);
+    border-color: var(--accent, #f97316);
+}

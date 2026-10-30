@@ -21,6 +21,12 @@ class User(UserMixin, db.Model):
     )
 
     leetcode_username = db.Column(db.String(50), nullable=True)
+    # Ownership verification: True = user has proved they own this LeetCode username.
+    # Grandfathered to True for all existing users who already had a username set.
+    leetcode_verified = db.Column(db.Boolean, nullable=False, default=False)
+    # Bio challenge token: user pastes this into their LeetCode "About Me" to prove ownership.
+    verification_token = db.Column(db.String(20), nullable=True)
+
     reminder_email = db.Column(db.String(254), nullable=True)
     last_activity_check_at = db.Column(
         db.Integer,
@@ -136,6 +142,7 @@ class User(UserMixin, db.Model):
     def leetcode_csrf_token(self, val):
         from app.services.crypto_utils import encrypt_cookie
         self._leetcode_csrf_token = encrypt_cookie(val)
+
     rescue_problem_slug = db.Column(
         db.String(100),
         nullable=False,
@@ -170,6 +177,21 @@ class User(UserMixin, db.Model):
         if not self.api_token:
             self.api_token = secrets.token_hex(24)
         return self.api_token
+
+    def get_or_create_verification_token(self, force_refresh=False):
+        """
+        Return the current LeetCode bio verification token, or generate a fresh one.
+        Format: guardian-XXXXXXXX (8 alphanumeric chars).
+        Users paste this into their LeetCode profile 'About Me' to prove ownership.
+        """
+        import secrets
+        import string
+        if self.verification_token and not force_refresh:
+            return self.verification_token
+        alphabet = string.ascii_lowercase + string.digits
+        token = "guardian-" + "".join(secrets.choice(alphabet) for _ in range(8))
+        self.verification_token = token
+        return token
 
     def get_or_create_telegram_pin(self, force_refresh=False):
         """
@@ -209,5 +231,3 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f"<User id={self.id} email={self.email}>"
-
-

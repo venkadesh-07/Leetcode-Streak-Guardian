@@ -159,6 +159,9 @@ def create_app(test_config=None):
                     ("rescue_code", "TEXT"),
                     ("last_rescue_date_utc", "VARCHAR(10)"),
                     ("last_rescue_status", "VARCHAR(100)"),
+                    # Ownership verification columns — added for bio token challenge
+                    ("leetcode_verified", "BOOLEAN DEFAULT FALSE NOT NULL"),
+                    ("verification_token", "VARCHAR(20)"),
                 ]
                 with db.engine.connect() as conn:
                     try:
@@ -174,6 +177,19 @@ def create_app(test_config=None):
                             conn.commit()
                         except Exception:
                             pass
+
+                    # Grandfather existing users: anyone who already had a LeetCode username
+                    # set before this feature shipped is automatically marked as verified.
+                    # New users must complete the bio token challenge to prove ownership.
+                    try:
+                        conn.execute(text(
+                            'UPDATE "user" SET leetcode_verified = TRUE '
+                            "WHERE leetcode_username IS NOT NULL AND leetcode_username != '' "
+                            'AND leetcode_verified = FALSE;'
+                        ))
+                        conn.commit()
+                    except Exception:
+                        pass
             except Exception:
                 pass
 

@@ -205,3 +205,85 @@ def check_daily_activity(username):
         "current_streak": streak,
         "checked_date_utc": now.date().isoformat(),
     }
+
+
+PROFILE_QUERY = """
+query getUserProfile($username: String!) {
+  matchedUser(username: $username) {
+    profile { aboutMe }
+  }
+}
+"""
+
+
+def check_username_ownership(username: str, token: str) -> bool:
+    """
+    Fetch the LeetCode user's 'About Me' bio and check if it contains the
+    verification token.
+
+    Returns:
+        True if the token is found in the bio, False otherwise.
+
+    Raises:
+        LeetCodeCheckerError on network or API failures.
+    """
+    if not isinstance(username, str) or not USERNAME_PATTERN.fullmatch(username.strip()):
+        raise LeetCodeCheckerError("Invalid LeetCode username format.")
+
+    if not isinstance(token, str) or not token.startswith("guardian-"):
+        raise LeetCodeCheckerError("Invalid verification token format.")
+
+    payload = {
+        "query": PROFILE_QUERY,
+        "variables": {"username": username.strip()},
+    }
+
+    try:
+        response = requests.post(
+            LEETCODE_GRAPHQL_URL,
+            json=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "LeetCode-Streak-Guardian/1.0",
+            },
+            timeout=(3.05, 10),
+            allow_redirects=False,
+        )
+    except requests.RequestException as exc:
+        raise LeetCodeCheckerError(
+            "Could not connect to LeetCode. Please try again later."
+        ) from exc
+
+    if response.status_code != 200:
+        raise LeetCodeCheckerError(
+            "LeetCode did not return a successful response."
+        )
+
+    content_type = response.headers.get("Content-Type", "").lower()
+    if "application/json" not in content_type:
+        raise LeetCodeCheckerError(
+            "LeetCode returned an unexpected response format."
+        )
+
+    try:
+        data = response.json()
+    except (ValueError, TypeError) as exc:
+        raise LeetCodeCheckerError("LeetCode returned invalid JSON.") from exc
+
+    if not isinstance(data, dict) or data.get("errors"):
+        raise LeetCodeCheckerError(
+            "LeetCode could not provide the profile data."
+        )
+
+    try:
+        about_me = data["data"]["matchedUser"]["profile"]["aboutMe"]
+    except (KeyError, TypeError):
+        raise LeetCodeCheckerError(
+            "The LeetCode username was not found or profile is unavailable."
+        )
+
+    if not isinstance(about_me, str):
+        return False
+
+    return token in about_me

@@ -34,6 +34,7 @@ def run_reminder_check(force=False):
         db.select(User).filter(
             User.reminder_enabled == True,
             User.leetcode_username.isnot(None),
+            User.leetcode_verified == True,
         )
     ).scalars().all()
 

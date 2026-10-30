@@ -538,4 +538,91 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // ========================================================
+    // 8. LEETCODE BIO OWNERSHIP VERIFICATION
+    // ========================================================
+    var verifyBtn = document.getElementById("verify-bio-btn");
+    var verifyResult = document.getElementById("verify-bio-result");
+    var copyTokenBtn = document.getElementById("lc-copy-token-btn");
+    var tokenCode = document.getElementById("lc-verify-token");
+
+    if (copyTokenBtn && tokenCode) {
+        copyTokenBtn.addEventListener("click", function () {
+            var text = tokenCode.textContent.trim();
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function () {
+                    copyTokenBtn.textContent = "Copied!";
+                    setTimeout(function () { copyTokenBtn.textContent = "Copy"; }, 2000);
+                }).catch(function () {
+                    copyTokenBtn.textContent = "Copy";
+                });
+            } else {
+                // Fallback for older browsers
+                var ta = document.createElement("textarea");
+                ta.value = text;
+                ta.style.position = "fixed";
+                ta.style.opacity = "0";
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand("copy");
+                document.body.removeChild(ta);
+                copyTokenBtn.textContent = "Copied!";
+                setTimeout(function () { copyTokenBtn.textContent = "Copy"; }, 2000);
+            }
+        });
+    }
+
+    if (verifyBtn && verifyResult) {
+        verifyBtn.addEventListener("click", function () {
+            var csrfInput = document.querySelector("input[name='csrf_token']");
+            var csrfToken = csrfInput ? csrfInput.value : "";
+
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = "Checking…";
+            verifyResult.style.display = "none";
+            verifyResult.textContent = "";
+
+            fetch("/api/verify-leetcode-bio", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken
+                },
+                credentials: "same-origin"
+            })
+            .then(function (resp) { return resp.json(); })
+            .then(function (data) {
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = "✓ Check My Bio";
+
+                verifyResult.style.display = "block";
+                verifyResult.textContent = data.message || "";
+
+                if (data.status === "success" && data.verified) {
+                    verifyResult.style.color = "var(--success, #22c55e)";
+                    // Replace the challenge UI with a verified badge after a short delay
+                    setTimeout(function () {
+                        var callout = document.querySelector(".lc-unverified-callout");
+                        if (callout) {
+                            var badge = document.createElement("div");
+                            badge.className = "lc-verified-badge";
+                            badge.setAttribute("role", "status");
+                            badge.textContent = "✅ Verified Owner";
+                            callout.replaceWith(badge);
+                        }
+                    }, 1200);
+                } else {
+                    verifyResult.style.color = "var(--error, #ef4444)";
+                }
+            })
+            .catch(function () {
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = "✓ Check My Bio";
+                verifyResult.style.display = "block";
+                verifyResult.style.color = "var(--error, #ef4444)";
+                verifyResult.textContent = "❌ Network error. Please try again.";
+            });
+        });
+    }
+
 });

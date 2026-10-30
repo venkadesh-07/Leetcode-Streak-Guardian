@@ -356,3 +356,42 @@ def validate_username():
 @csrf.exempt
 def health():
     return jsonify({"status": "ok", "timestamp": int(time.time())}), 200
+
+
+@main.route("/api/verify-leetcode-bio", methods=["POST"])
+@login_required
+@limiter.limit("5 per minute")
+def verify_leetcode_bio():
+    """
+    Check if the logged-in user's LeetCode 'About Me' bio contains their
+    verification token. On success, marks the user as leetcode_verified.
+    """
+    username = current_user.leetcode_username
+    token = current_user.verification_token
+
+    if not username or not token:
+        return jsonify({
+            "status": "error",
+            "message": "No LeetCode username or verification token found. Please save your username first."
+        }), 400
+
+    from app.services.leetcode_checker import check_username_ownership, LeetCodeCheckerError as _LeetCodeCheckerError
+    try:
+        found = check_username_ownership(username, token)
+    except _LeetCodeCheckerError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 200
+
+    if found:
+        current_user.leetcode_verified = True
+        db.session.commit()
+        return jsonify({
+            "status": "success",
+            "verified": True,
+            "message": "✅ Ownership confirmed! Your LeetCode username is now verified."
+        }), 200
+
+    return jsonify({
+        "status": "success",
+        "verified": False,
+        "message": "❌ Token not found in your LeetCode About Me. Add it and try again."
+    }), 200
