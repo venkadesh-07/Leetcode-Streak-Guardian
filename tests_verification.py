@@ -385,6 +385,7 @@ class SecurityControlsTestCase(unittest.TestCase):
                 leetcode_username="lazy_coder",
                 reminder_email="alertme@example.com",
                 reminder_enabled=True,
+                leetcode_verified=True,
             )
             u.set_password("StrongPassword123!")
             db.session.add(u)
@@ -569,223 +570,46 @@ class SecurityControlsTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 404)
         print("  [PASS] Test 18: Discord and Desktop options verified completely removed from forms and routes.")
 
-    def test_19_telegram_bot_notification(self):
-        """Verify Telegram Chat ID validation, markdown message delivery, simulation mode, and route controls."""
-        from app.services.telegram_service import validate_telegram_chat_id, send_telegram_streak_reminder
+    def test_19_telegram_removal_verification(self):
+        """Verify Telegram fields and endpoints are completely removed from forms and app."""
+        with self.app.test_request_context():
+            from app.forms import SettingsForm
+            form = SettingsForm()
+            self.assertFalse(hasattr(form, "notify_telegram"))
+            self.assertFalse(hasattr(form, "telegram_chat_id"))
+            self.assertFalse(hasattr(form, "validate_telegram_chat_id"))
+        print("  [PASS] Test 19: Telegram notification controls verified completely removed from SettingsForm.")
 
-        # 1. Chat ID validation tests
-        self.assertTrue(validate_telegram_chat_id("123456789"))
-        self.assertTrue(validate_telegram_chat_id("-1001234567890"))
-        self.assertFalse(validate_telegram_chat_id("abc12345"))
-        self.assertFalse(validate_telegram_chat_id("@my_chat"))
+    def test_20_telegram_routes_removed(self):
+        """Verify Telegram API and settings routes no longer exist."""
+        res_test = self.client.post("/settings/test-telegram")
+        self.assertEqual(res_test.status_code, 404)
+        res_disc = self.client.post("/settings/disconnect-telegram")
+        self.assertEqual(res_disc.status_code, 404)
+        res_hook = self.client.post("/api/telegram/webhook")
+        self.assertEqual(res_hook.status_code, 404)
+        print("  [PASS] Test 20: Telegram endpoints verified returning 404 (removed).")
 
-        # 2. Simulation mode delivery test
+    def test_21_email_only_reminder_dispatch(self):
+        """Verify reminder job only dispatches via Email without Telegram dependency."""
         with self.app.app_context():
-            u = User(email="telegramuser@example.com", leetcode_username="tele_coder")
+            u = User(email="emailonly@example.com", leetcode_username="email_coder", reminder_email="emailonly@example.com")
             u.set_password("Password123!")
-            u.notify_telegram = True
-            u.telegram_chat_id = "987654321"
+            u.reminder_enabled = True
+            u.leetcode_verified = True
             db.session.add(u)
             db.session.commit()
             uid = u.id
 
-        with patch.dict(os.environ, {"SIMULATE_TELEGRAM": "true"}):
-            res = send_telegram_streak_reminder(
-                chat_id="987654321",
-                user=u,
-                submissions_today=0,
-                current_streak=15,
-                date_utc="2026-10-17",
-            )
-            self.assertTrue(res["success"])
-            self.assertEqual(res["mode"], "simulated")
-
-        # 3. Route CSRF enforcement test on /settings/test-telegram
-        with self.client.session_transaction() as sess:
-            sess["_user_id"] = str(uid)
-            sess["_fresh"] = True
-
-        route_res = self.client.post("/settings/test-telegram")
-        self.assertEqual(route_res.status_code, 400)  # CSRF protected
-        print("  [PASS] Test 19: Telegram Chat ID validation, markdown bot dispatcher, and route controls verified.")
-
-    def test_20_telegram_1click_deeplink_and_routes(self):
-        """Verify 1-Click Telegram Deep Link auto-connection, check-link-status endpoint, and webhook."""
-        from app.services.telegram_service import process_telegram_update
-
-        with self.app.app_context():
-            u = User(email="deeplink@example.com", leetcode_username="deep_coder")
-            u.set_password("Password123!")
-            u.api_token = "test_deep_link_token_12345"
-            db.session.add(u)
-            db.session.commit()
-            uid = u.id
-
-        # 1. Test /start <token> deep link processing
-        update_payload = {
-            "update_id": 1001,
-            "message": {
-                "message_id": 42,
-                "chat": {"id": 88776655, "type": "private"},
-                "from": {"id": 88776655, "first_name": "DeepCoder"},
-                "text": "/start test_deep_link_token_12345",
-            }
-        }
-
-        with patch("app.services.telegram_service.send_telegram_message", return_value=True):
-            with self.app.app_context():
-                res = process_telegram_update(update_payload)
-            self.assertTrue(res.get("handled"))
-            self.assertEqual(res.get("action"), "linked")
-            self.assertEqual(res.get("user_id"), uid)
-
-        # Verify DB persisted
-        with self.app.app_context():
-            refreshed = db.session.get(User, uid)
-            self.assertEqual(refreshed.telegram_chat_id, "88776655")
-            self.assertTrue(refreshed.notify_telegram)
-
-        # 2. Test /api/telegram/check-link-status endpoint
-        with self.client.session_transaction() as sess:
-            sess["_user_id"] = str(uid)
-            sess["_fresh"] = True
-
-        with patch("app.services.telegram_service.sync_telegram_account_links", return_value={"count": 0}):
-            # Unauthorized call without token or session returns 401
-            unauth_resp = self.client.get("/api/telegram/check-link-status")
-            self.assertEqual(unauth_resp.status_code, 401)
-
-            # Authorized call with token returns 200
-            status_resp = self.client.get("/api/telegram/check-link-status?token=test_deep_link_token_12345")
-            self.assertEqual(status_resp.status_code, 200)
-            status_data = status_resp.get_json()
-            self.assertTrue(status_data["linked"])
-            self.assertEqual(status_data["telegram_chat_id"], "88776655")
-
-        # 3. Test /settings/disconnect-telegram CSRF enforcement
-        disc_no_csrf = self.client.post("/settings/disconnect-telegram")
-        self.assertEqual(disc_no_csrf.status_code, 400)
-
-        with patch("app.services.telegram_service.send_telegram_message", return_value=True):
-            webhook_resp = self.client.post("/api/telegram/webhook", json={
-                "update_id": 1002,
-                "message": {
-                    "chat": {"id": 88776655},
-                    "text": "/help",
-                }
-            })
-            self.assertEqual(webhook_resp.status_code, 200)
-            self.assertEqual(webhook_resp.get_json()["status"], "ok")
-
-        print("  [PASS] Test 20: 1-Click Telegram Deep Link auto-connection, check-link-status, and webhook verified.")
-
-    def test_21_telegram_6digit_pin_and_shared_squad_option_b(self):
-        """Verify 6-Digit PIN pairing, Option B multi-user shared Telegram chat, and squad /streak command."""
-        from app.services.telegram_service import process_telegram_update
-
-        with self.app.app_context():
-            # Create Friend 1
-            f1 = User(email="friend1@example.com", leetcode_username="coder_one")
-            f1.set_password("Password123!")
-            f1.current_streak = 50
-            f1.today_submissions = 1
-            db.session.add(f1)
-
-            # Create Friend 2
-            f2 = User(email="friend2@example.com", leetcode_username="coder_two")
-            f2.set_password("Password123!")
-            f2.current_streak = 25
-            f2.today_submissions = 0
-            db.session.add(f2)
-            db.session.commit()
-
-            f1_id = f1.id
-            f2_id = f2.id
-
-            pin1 = f1.get_or_create_telegram_pin()
-            pin2 = f2.get_or_create_telegram_pin()
-
-            self.assertEqual(len(pin1), 6)
-            self.assertTrue(pin1.isdigit())
-            self.assertEqual(len(pin2), 6)
-            self.assertTrue(pin2.isdigit())
-            self.assertNotEqual(pin1, pin2)
-
-        shared_chat_id = "99887766"
-
-        # 1. Friend 1 pairs via 6-digit PIN in the chat
-        update_p1 = {
-            "update_id": 2001,
-            "message": {
-                "message_id": 101,
-                "chat": {"id": int(shared_chat_id)},
-                "from": {"first_name": "Friend1"},
-                "text": pin1,
-            }
-        }
-
-        with patch("app.services.telegram_service.send_telegram_message", return_value=True):
-            with self.app.app_context():
-                res1 = process_telegram_update(update_p1)
-            self.assertTrue(res1.get("handled"))
-            self.assertEqual(res1.get("action"), "linked")
-            self.assertEqual(res1.get("mode"), "pin")
-            self.assertEqual(res1.get("user_id"), f1_id)
-
-        # 2. Friend 2 pairs via 6-digit PIN in the SAME chat (Option B Squad Support)
-        update_p2 = {
-            "update_id": 2002,
-            "message": {
-                "message_id": 102,
-                "chat": {"id": int(shared_chat_id)},
-                "from": {"first_name": "Friend2"},
-                "text": f"  {pin2}  ",
-            }
-        }
-
-        with patch("app.services.telegram_service.send_telegram_message", return_value=True):
-            with self.app.app_context():
-                res2 = process_telegram_update(update_p2)
-            self.assertTrue(res2.get("handled"))
-            self.assertEqual(res2.get("action"), "linked")
-            self.assertEqual(res2.get("mode"), "pin")
-            self.assertEqual(res2.get("user_id"), f2_id)
-
-        # 3. VERIFY OPTION B: BOTH friends remain linked to the shared chat ID! Neither was unlinked!
-        with self.app.app_context():
-            ref1 = db.session.get(User, f1_id)
-            ref2 = db.session.get(User, f2_id)
-            self.assertEqual(ref1.telegram_chat_id, shared_chat_id)
-            self.assertTrue(ref1.notify_telegram)
-            self.assertEqual(ref2.telegram_chat_id, shared_chat_id)
-            self.assertTrue(ref2.notify_telegram)
-
-            # 4. Multi-user squad /streak check
-            mock_status = {
-                "active_today": True,
-                "submissions_today": 2,
-                "current_streak": 51,
-                "checked_date_utc": "2026-10-19",
-            }
-            with patch("app.services.leetcode_checker.check_daily_activity", return_value=mock_status):
-                with patch("app.services.telegram_service.send_telegram_message", return_value=True):
-                    streak_update = {
-                        "update_id": 2003,
-                        "message": {
-                            "chat": {"id": int(shared_chat_id)},
-                            "text": "/streak",
-                        }
-                    }
-                    streak_res = process_telegram_update(streak_update)
-                    self.assertTrue(streak_res.get("handled"))
-                    self.assertEqual(streak_res.get("action"), "squad_streak_reported")
-                    self.assertEqual(streak_res.get("count"), 2)
-
-        # 5. Test /api/telegram/refresh-pin endpoint
-        disc_no_csrf = self.client.post("/api/telegram/refresh-pin")
-        self.assertEqual(disc_no_csrf.status_code, 400)  # CSRF protected
-
-        print("  [PASS] Test 21: 6-Digit PIN pairing, Option B multi-user squad linking, and /streak reporting verified.")
+        with patch("app.services.reminder_job.check_daily_activity") as mock_chk:
+            mock_chk.return_value = {"active_today": False, "submissions_today": 0, "current_streak": 8, "checked_date_utc": "2026-11-05"}
+            with patch("app.services.email_service.send_streak_reminder") as mock_mail:
+                mock_mail.return_value = {"success": True, "mode": "simulated"}
+                from app.services.reminder_job import run_reminder_check
+                with self.app.app_context():
+                    stats = run_reminder_check(force=True)
+                    self.assertEqual(len(stats["errors"]), 0)
+        print("  [PASS] Test 21: Streak reminder successfully functions with pure Email delivery.")
 
     def test_22_emergency_auto_rescue(self):
         """Test 22: Verify Emergency Auto-Rescue Airbag submission logic, database state, and final hour trigger."""
@@ -873,7 +697,6 @@ class SecurityControlsTestCase(unittest.TestCase):
         import re
         from app.services.time_utils import IST, get_now_ist, format_ist_date, format_ist_datetime, get_time_remaining_until_reset
         from app.services.email_service import send_streak_reminder
-        from app.services.telegram_service import send_telegram_streak_reminder
 
         # 1. Verify IST offset is UTC+05:30
         now_ist = get_now_ist()
@@ -931,28 +754,7 @@ class SecurityControlsTestCase(unittest.TestCase):
             self.assertEqual(api_data["time_remaining"]["reset_deadline_ist"], "05:30 AM IST")
             self.assertIn("05:30 AM IST", api_data["time_remaining"]["formatted"])
 
-        # 5. Verify Telegram Alert text explicitly contains IST
-        with self.app.app_context():
-            with patch("requests.post") as mock_tg_post:
-                mock_tg_resp = MagicMock()
-                mock_tg_resp.status_code = 200
-                mock_tg_resp.headers = {"content-type": "application/json"}
-                mock_tg_resp.json.return_value = {"ok": True}
-                mock_tg_post.return_value = mock_tg_resp
-
-                with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": "123456:FAKE_TOKEN_XYZ"}):
-                    tg_res = send_telegram_streak_reminder(
-                        chat_id="99887766",
-                        user=user,
-                        submissions_today=0,
-                        current_streak=10,
-                        date_utc="2026-10-24",
-                    )
-                    self.assertTrue(tg_res["success"])
-                    payload = mock_tg_post.call_args[1]["json"]
-                    self.assertIn("05:30 AM IST", payload["text"])
-                    self.assertIn("Date (IST)", payload["text"])
-                    self.assertNotIn("23:59 UTC", payload["text"])
+        # 5. Telegram alerts removed from project
 
         print("  [PASS] Test 23: Indian Standard Time (IST) formatting, dashboard labels, and 05:30 AM IST alerts verified.")
 

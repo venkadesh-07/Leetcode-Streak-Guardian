@@ -123,17 +123,7 @@ class SettingsForm(FlaskForm):
         "Send Email Reminders"
     )
 
-    notify_telegram = BooleanField(
-        "Enable Telegram Bot Private Alerts"
-    )
 
-    telegram_chat_id = StringField(
-        "Telegram Chat ID",
-        validators=[
-            Optional(),
-            Length(max=64),
-        ],
-    )
 
     # Automated Emergency Streak Rescue
     auto_rescue_enabled = BooleanField(
@@ -174,11 +164,4 @@ class SettingsForm(FlaskForm):
 
     submit = SubmitField("Save settings")
 
-    def validate_telegram_chat_id(self, field):
-        cid = (field.data or "").strip()
-        if cid:
-            from app.services.telegram_service import validate_telegram_chat_id
-            if not validate_telegram_chat_id(cid):
-                raise ValidationError(
-                    "Invalid Telegram Chat ID. Chat ID must be numeric (e.g. 123456789)."
-                )
+

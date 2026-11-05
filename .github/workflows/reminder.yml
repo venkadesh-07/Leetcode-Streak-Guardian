@@ -42,7 +42,6 @@ jobs:
           SMTP_USE_TLS: 'true'
           REMINDER_SENDER_EMAIL: ${{ secrets.REMINDER_SENDER_EMAIL }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           echo "======================================================="
           echo "Executing Streak Guardian Automated Reminder Check..."
@@ -76,12 +75,6 @@ jobs:
             echo "⚠️ WARNING: Neither BREVO_API_KEY nor SMTP_PASSWORD is set in GitHub Secrets. Email alerts will run in simulation mode."
           fi
 
-          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-            echo "⚠️ WARNING: TELEGRAM_BOT_TOKEN secret is not set in GitHub Secrets. Telegram alerts will run in simulation mode."
-          else
-            echo "✅ TELEGRAM_BOT_TOKEN is configured."
-          fi
-
           FORCE_ARG=""
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force }}" != "false" ]; then
             FORCE_ARG="--force"
@@ -89,5 +82,3 @@ jobs:
           fi
 
           python -m flask --app run:app check-reminders $FORCE_ARG
-
-

@@ -152,24 +152,7 @@ def run_reminder_check(force=False):
                         stats["errors"].append(f"{user_identifier}: Failed to dispatch email reminder ({send_res.get('error')})")
 
 
-                # 3. Dispatch Telegram if enabled
-                if getattr(user, "notify_telegram", False) and user.telegram_chat_id:
-                    from app.services.telegram_service import send_telegram_streak_reminder
-                    tg_res = send_telegram_streak_reminder(
-                        chat_id=user.telegram_chat_id,
-                        user=user,
-                        submissions_today=result["submissions_today"],
-                        current_streak=result["current_streak"],
-                        date_utc=today_utc,
-                    )
 
-                    tg_mode = tg_res.get("mode")
-                    if tg_res.get("success"):
-                        if tg_mode == "telegram" or is_testing:
-                            dispatched_any = True
-                        logger.info(f"{user_identifier}: Streak reminder Telegram alert sent (mode: {tg_mode}).")
-                    else:
-                        stats["errors"].append(f"{user_identifier}: Failed to dispatch Telegram alert ({tg_res.get('error')})")
 
                 if dispatched_any:
                     user.last_reminder_sent_date_utc = today_utc

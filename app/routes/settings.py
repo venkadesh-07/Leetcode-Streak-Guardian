@@ -16,7 +16,6 @@ from app.forms import SettingsForm
 from app.models import User
 from app.routes import main
 from app.services.email_service import send_streak_reminder
-from app.services.telegram_service import get_telegram_bot_username, send_telegram_streak_reminder
 
 
 @main.route("/settings", methods=["GET", "POST"])
@@ -54,16 +53,6 @@ def settings():
 
         current_user.notify_email = bool(
             form.notify_email.data
-        )
-
-        current_user.notify_telegram = bool(
-            form.notify_telegram.data
-        )
-
-        current_user.telegram_chat_id = (
-            form.telegram_chat_id.data.strip()
-            if form.telegram_chat_id.data
-            else None
         )
 
         current_user.auto_rescue_enabled = bool(
@@ -113,25 +102,11 @@ def settings():
         flash("Settings saved successfully.", "success")
         return redirect(url_for("main.settings"))
 
-    # Auto-sync recent Telegram bot authorizations if user has an api_token
     token = current_user.get_or_create_api_token()
-    telegram_pin = current_user.get_or_create_telegram_pin()
     # Ensure verification token is always available for users with a username set
     if current_user.leetcode_username:
         current_user.get_or_create_verification_token()
     db.session.commit()
-
-    import urllib.parse
-    bot_username = get_telegram_bot_username()
-    telegram_connect_url = f"https://t.me/{bot_username}?start={token}"
-    tg_uri = urllib.parse.quote(f"tg://resolve?domain={bot_username}&start={token}")
-    telegram_web_url = f"https://web.telegram.org/k/#?tgaddr={tg_uri}"
-
-    linked_accounts_count = (
-        User.query.filter_by(telegram_chat_id=current_user.telegram_chat_id).count()
-        if current_user.telegram_chat_id
-        else 0
-    )
 
     from app.services.rescue_service import DEFAULT_TWO_SUM_PYTHON3
     if not form.rescue_code.data and not current_user.rescue_code:
@@ -140,11 +115,6 @@ def settings():
     return render_template(
         "settings.html",
         form=form,
-        telegram_connect_url=telegram_connect_url,
-        telegram_web_url=telegram_web_url,
-        bot_username=bot_username,
-        telegram_pin=telegram_pin,
-        linked_accounts_count=linked_accounts_count,
         verification_token=current_user.verification_token,
         leetcode_verified=current_user.leetcode_verified,
     )
@@ -217,14 +187,6 @@ def send_test_email():
     return redirect(url_for("main.settings"))
 
 
-@main.route("/settings/test-telegram", methods=["POST"])
-@login_required
-@limiter.limit("5 per minute")
-def send_test_telegram():
-    """Send an instant sample streak reminder message to the user's configured Telegram Chat ID."""
-    if not current_user.leetcode_username:
-        flash("Please enter and save your LeetCode username first before testing reminders.", "warning")
-        return redirect(url_for("main.settings"))
 
     chat_id = current_user.telegram_chat_id
     if not chat_id:
@@ -269,20 +231,6 @@ def send_test_telegram():
 
     return redirect(url_for("main.settings"))
 
-
-@main.route("/settings/disconnect-telegram", methods=["POST"])
-@login_required
-def disconnect_telegram():
-    """Allows user to disconnect their Telegram account in 1 click."""
-    current_user.telegram_chat_id = None
-    current_user.notify_telegram = False
-    try:
-        db.session.commit()
-        flash("Telegram account unlinked successfully.", "info")
-    except SQLAlchemyError:
-        db.session.rollback()
-        flash("Could not unlink Telegram account. Please try again.", "error")
-    return redirect(url_for("main.settings"))
 
 
 @main.route("/settings/test-rescue", methods=["POST"])

@@ -136,140 +136,7 @@
                         </div>
                     </div>
 
-                    <!-- Channel 2: Telegram Bot -->
-                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
-                        <div class="checkbox-group" style="margin-bottom: 12px;">
-                            <div class="checkbox-group-content">
-                                {{ form.notify_telegram() }}
-                                <label for="notify_telegram" style="font-weight: 600; color: var(--text-primary);">
-                                    🤖 Telegram Bot Private Alerts (1-on-1 Chat)
-                                </label>
-                            </div>
-                            <div class="toggle-switch-track">
-                                <div class="toggle-switch-thumb"></div>
-                            </div>
-                        </div>
-
-                        <!-- Telegram 6-Digit PIN & 1-Click Connector -->
-                        <div style="background: rgba(0, 136, 204, 0.06); border: 1px solid rgba(0, 136, 204, 0.25); border-radius: var(--radius-md); padding: 18px; margin-bottom: 14px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 20px;">🤖</span>
-                                    <strong style="color: #60a5fa; font-size: 14px;">Telegram Bot Connection</strong>
-                                    {% if current_user.telegram_chat_id %}
-                                        <span id="telegram-status-badge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11px; padding: 3px 10px; border-radius: 9999px;">🟢 Linked</span>
-                                    {% else %}
-                                        <span id="telegram-status-badge" class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-size: 11px; padding: 3px 10px; border-radius: 9999px;">⏳ Not Linked Yet</span>
-                                    {% endif %}
-                                </div>
-
-                                {% if current_user.telegram_chat_id %}
-                                    <button type="button" id="disconnect-telegram-btn" class="btn btn-danger btn-sm" data-loading-text="Unlinking...">
-                                        Disconnect Telegram
-                                    </button>
-                                {% endif %}
-                            </div>
-
-                            {% if current_user.telegram_chat_id %}
-                                <div style="padding: 12px 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-sm); margin-bottom: 12px;">
-                                    <p style="font-size: 13px; color: #a7f3d0; margin: 0 0 6px 0;">
-                                        Connected to <strong>@{{ bot_username }}</strong> (Chat ID: <code>{{ current_user.telegram_chat_id }}</code>).
-                                    </p>
-                                    <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
-                                        🔥 Send <code>/streak</code> in your Telegram chat anytime to check live stats!
-                                    </p>
-                                </div>
-
-                                {% if linked_accounts_count and linked_accounts_count > 1 %}
-                                    <div class="squad-callout" style="margin-bottom: 12px;">
-                                        👥 <strong>Shared Squad Chat Active:</strong> <code>{{ linked_accounts_count }} accounts</code> are receiving streak reminders in this Telegram chat. Send <code>/streak</code> in Telegram to view the squad scorecard!
-                                    </div>
-                                {% endif %}
-
-                                <details style="cursor: pointer; margin-top: 8px;">
-                                    <summary style="font-size: 12px; color: var(--text-muted);">Link another account to this chat or generate new PIN</summary>
-                                    <div style="margin-top: 10px; padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-sm);">
-                                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
-                                            To add friends to this same chat, have them log into their account, copy their 6-digit PIN below, and send it to <strong>@{{ bot_username }}</strong>.
-                                        </p>
-                                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                                            <code id="telegram-pin-value" style="font-size: 18px; font-weight: 700; color: #38bdf8; letter-spacing: 2px;">{{ telegram_pin }}</code>
-                                            <button type="button" id="copy-pin-btn" class="btn btn-secondary btn-sm" data-pin="{{ telegram_pin }}">
-                                                📋 Copy PIN
-                                            </button>
-                                            <button type="button" id="refresh-pin-btn" class="btn btn-secondary btn-sm">
-                                                🔄 Refresh PIN
-                                            </button>
-                                        </div>
-                                    </div>
-                                </details>
-
-                            {% else %}
-                                <!-- 🌟 Idea 1: 6-Digit PIN Pairing Card (Recommended) -->
-                                <div class="pin-card">
-                                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; font-weight: 700; margin-bottom: 4px;">
-                                        ⚡ Fast 6-Digit Pairing PIN
-                                    </div>
-                                    <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 8px 0;">
-                                        Open <strong>@{{ bot_username }}</strong> in Telegram and simply send these 6 digits:
-                                    </p>
-
-                                    <div class="pin-display-wrapper">
-                                        <span class="pin-code-text" id="telegram-pin-value">{{ telegram_pin }}</span>
-                                    </div>
-
-                                    <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
-                                        <a href="{{ telegram_connect_url }}" id="connect-telegram-btn" target="_blank" rel="noopener noreferrer" class="btn btn-telegram btn-sm" title="Open in Telegram Desktop / Mobile App">
-                                            <span>✈️ Open in Telegram App</span>
-                                        </a>
-                                        <a href="{{ telegram_web_url }}" id="connect-telegram-web-btn" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="background: #0284c7; border-color: #0369a1;" title="Open in Telegram Web directly inside this browser">
-                                            <span>🌐 Open in Telegram Web</span>
-                                        </a>
-                                        <button type="button" id="copy-pin-btn" class="btn btn-secondary btn-sm" data-pin="{{ telegram_pin }}">
-                                            <span>📋 Copy PIN</span>
-                                        </button>
-                                        <button type="button" id="refresh-pin-btn" class="btn btn-secondary btn-sm" title="Generate a new PIN">
-                                            <span>🔄 Refresh PIN</span>
-                                        </button>
-                                    </div>
-                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
-                                        ⏱️ PIN expires in 15 minutes. No START button required — works in any existing chat!
-                                    </div>
-                                </div>
-
-                                <!-- Option B Squad Callout -->
-                                <div class="squad-callout">
-                                    👥 <strong>Shared Telegram Account / Friends:</strong> Want to receive alerts for multiple LeetCode accounts in one Telegram chat? Each friend can simply send their own 6-digit PIN in the same Telegram chat. The bot connects everyone without overwriting!
-                                </div>
-
-                                <!-- Live Radar Status Detector Box -->
-                                <div id="telegram-sync-radar" style="font-size: 12px; padding: 10px 14px; border-radius: var(--radius-sm); margin-top: 10px; background: rgba(0, 136, 204, 0.1); border: 1px solid rgba(0, 136, 204, 0.3); color: #93c5fd;">
-                                    <span class="btn-spinner"></span> <strong>Listening for your PIN...</strong> Send <code id="pin-inline-hint">{{ telegram_pin }}</code> in Telegram to pair automatically!
-                                </div>
-                            {% endif %}
-                        </div>
-
-
-                        <details style="margin-top: 8px; cursor: pointer;">
-                            <summary style="font-size: 12px; color: var(--text-muted);">Manual Chat ID Setup (Optional)</summary>
-                            <div class="form-group" style="margin-top: 10px; margin-bottom: 0;">
-                                {{ form.telegram_chat_id.label }}
-                                {{ form.telegram_chat_id(
-                                    autocomplete="off",
-                                    maxlength="64",
-                                    placeholder="e.g. 1896416476"
-                                ) }}
-                                <small class="form-help">
-                                    Auto-populated when using 1-Click Connect, or enter your numerical Chat ID manually.
-                                </small>
-                                {% for error in form.telegram_chat_id.errors %}
-                                    <span class="field-error" role="alert">{{ error }}</span>
-                                {% endfor %}
-                            </div>
-                        </details>
-                    </div>
-
-                    <!-- Channel 3: Emergency Auto-Rescue Airbag -->
+                    <!-- Channel 2: Emergency Auto-Rescue Airbag -->
                     <div style="background: rgba(239, 68, 68, 0.04); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px;">
                         <div class="checkbox-group" style="margin-bottom: 12px;">
                             <div class="checkbox-group-content">
@@ -381,9 +248,7 @@
                     </a>
                 </div>
             </form>
-            <form id="disconnect-telegram-form" method="POST" action="{{ url_for('main.disconnect_telegram') }}" style="display: none;">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            </form>
+            
 
             <!-- Test Alert Dispatchers Section -->
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-subtle);">
@@ -401,16 +266,7 @@
                         </form>
                     </div>
 
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                        <div>
-                            <strong style="font-size: 13px;">Test Telegram Alert</strong>
-                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 0;">Send sample streak message to your Telegram Chat ID.</p>
-                        </div>
-                        <form method="POST" action="{{ url_for('main.send_test_telegram') }}" style="display: inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-telegram btn-sm" data-loading-text="Sending to Telegram...">Send Test Telegram</button>
-                        </form>
-                    </div>
+                    
 
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px dashed rgba(255, 255, 255, 0.08);">
                         <div>

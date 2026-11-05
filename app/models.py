@@ -193,41 +193,6 @@ class User(UserMixin, db.Model):
         self.verification_token = token
         return token
 
-    def get_or_create_telegram_pin(self, force_refresh=False):
-        """
-        Generate or return an active 6-digit numeric pairing PIN for Telegram linking.
-        Valid for 15 minutes (900 seconds).
-        """
-        import time
-        import secrets
-        now = int(time.time())
-
-        if (
-            not force_refresh
-            and self.telegram_pin
-            and self.telegram_pin_expires_at
-            and self.telegram_pin_expires_at > now
-        ):
-            return self.telegram_pin
-
-        # Generate a collision-resistant 6-digit PIN
-        for _ in range(10):
-            candidate = f"{secrets.randbelow(900000) + 100000}"
-            conflict = User.query.filter(
-                User.telegram_pin == candidate,
-                User.id != self.id,
-                User.telegram_pin_expires_at > now,
-            ).first()
-            if not conflict:
-                self.telegram_pin = candidate
-                self.telegram_pin_expires_at = now + 900
-                db.session.commit()
-                return self.telegram_pin
-
-        self.telegram_pin = f"{secrets.randbelow(900000) + 100000}"
-        self.telegram_pin_expires_at = now + 900
-        db.session.commit()
-        return self.telegram_pin
 
     def __repr__(self):
         return f"<User id={self.id} email={self.email}>"

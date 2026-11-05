@@ -361,19 +361,9 @@ def _notify_rescue_event(user, success: bool, problem_slug: str, detail: dict):
                 f"Please log into LeetCode and solve today's problem manually before 05:30 AM IST to keep your streak alive!"
             )
 
-        notifications = {"telegram": "not configured", "email": "not configured"}
+        notifications = {"email": "not configured"}
 
-        # 1. Telegram
-        if user.telegram_chat_id:
-            try:
-                from app.services.telegram_service import send_telegram_message
-                tg_ok = send_telegram_message(str(user.telegram_chat_id), tg_text, parse_mode="HTML")
-                notifications["telegram"] = "delivered" if tg_ok else "failed (check bot token or permissions)"
-            except Exception as tg_err:
-                notifications["telegram"] = f"error: {tg_err}"
-                logger.warning(f"Failed to send Telegram rescue notice: {tg_err}")
-
-        # 2. Email
+        # Email notification
         target_email = getattr(user, "reminder_email", None) or getattr(user, "email", None)
         if target_email:
             try:
@@ -388,4 +378,4 @@ def _notify_rescue_event(user, success: bool, problem_slug: str, detail: dict):
         return notifications
     except Exception as exc:
         logger.warning(f"Unexpected error in _notify_rescue_event: {exc}")
-        return {"telegram": "error", "email": "error"}
+        return {"email": "error"}
