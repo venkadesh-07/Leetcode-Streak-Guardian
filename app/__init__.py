@@ -178,6 +178,14 @@ def create_app(test_config=None):
                         except Exception:
                             pass
 
+                    # Clean up legacy and unwanted columns
+                    for drop_col in ["notify_telegram", "telegram_chat_id", "telegram_pin", "telegram_pin_expires_at", "notify_desktop", "notify_discord", "discord_webhook_url"]:
+                        try:
+                            conn.execute(text(f'ALTER TABLE "user" DROP COLUMN IF EXISTS {drop_col};'))
+                            conn.commit()
+                        except Exception:
+                            pass
+
                     # Grandfather existing users: anyone who already had a LeetCode username
                     # set before this feature shipped is automatically marked as verified.
                     # New users must complete the bio token challenge to prove ownership.

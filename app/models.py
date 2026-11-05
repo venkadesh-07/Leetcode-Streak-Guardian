@@ -69,43 +69,11 @@ class User(UserMixin, db.Model):
         nullable=False,
         default=True,
     )
-    notify_desktop = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=True,
-    )
-    notify_discord = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=False,
-    )
-    discord_webhook_url = db.Column(
-        db.String(255),
-        nullable=True,
-    )
-    notify_telegram = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=False,
-    )
-    telegram_chat_id = db.Column(
-        db.String(64),
-        nullable=True,
-    )
     api_token = db.Column(
         db.String(64),
         unique=True,
         nullable=True,
         index=True,
-    )
-    telegram_pin = db.Column(
-        db.String(6),
-        nullable=True,
-        index=True,
-    )
-    telegram_pin_expires_at = db.Column(
-        db.BigInteger,
-        nullable=True,
     )
     auto_rescue_enabled = db.Column(
         db.Boolean,

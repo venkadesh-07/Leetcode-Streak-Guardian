@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LeetCode Streak Guardian — 24/7 Autonomous Streak Protection</title>
-    <meta name="description" content="Never break your LeetCode coding streak. Automated background checks every 4 hours with instant Telegram Bot and Email alerts before UTC midnight.">
+    <meta name="description" content="Never break your LeetCode coding streak. Automated background checks every 4 hours with instant Email alerts and Emergency Auto-Rescue before the daily reset.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -37,7 +37,7 @@
             </h1>
             <p class="subtitle hero-subtitle">
                 Automated background scans verify your daily problem status every 4 hours. 
-                Instant alerts dispatched straight to your <strong>Telegram</strong> & <strong>Email</strong> before the UTC reset.
+                Instant alerts dispatched straight to your <strong>Email</strong> and automated <strong>Auto-Rescue</strong> protection before the daily reset.
             </p>
             <div class="hero-cta-group">
                 <a href="{{ url_for('main.register') }}" class="btn btn-primary btn-lg">
@@ -82,16 +82,6 @@
 
             <!-- Multi-Channel Preview Box -->
             <div class="channels-preview-grid">
-                <div class="channel-preview-card channel-card-tg">
-                    <div class="preview-card-header">
-                        <span class="channel-icon">🤖</span>
-                        <strong>Telegram Bot Alerts</strong>
-                        <span class="badge badge-cyan">Instant Delivery</span>
-                    </div>
-                    <p class="preview-text">
-                        Connect in 5 seconds with a 6-digit PIN. Chat 1-on-1 or add friends to a shared squad inbox. Send <code>/streak</code> anytime!
-                    </p>
-                </div>
                 <div class="channel-preview-card channel-card-mail">
                     <div class="preview-card-header">
                         <span class="channel-icon" style="display: inline-flex; align-items: center; justify-content: center;">
@@ -109,7 +99,17 @@
                         <span class="badge badge-success">Fail-Closed TLS</span>
                     </div>
                     <p class="preview-text">
-                        Direct to your inbox with exact hours remaining before the UTC day ends. Automatically silences the instant you solve 1 problem.
+                        Delivered directly to your inbox with exact hours remaining before reset. Automatically stops the instant you solve 1 problem.
+                    </p>
+                </div>
+                <div class="channel-preview-card" style="border-left: 3px solid #ef4444;">
+                    <div class="preview-card-header">
+                        <span class="channel-icon">🚨</span>
+                        <strong>Emergency Auto-Rescue</strong>
+                        <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5;">04:10 AM IST</span>
+                    </div>
+                    <p class="preview-text">
+                        If you haven't solved a problem by 04:10 AM IST, Guardian automatically submits your backup solution, ensuring zero streak loss.
                     </p>
                 </div>
             </div>
@@ -134,15 +134,15 @@
                 </div>
 
                 <div class="feature-box">
-                    <div class="feature-icon-wrapper">👥</div>
-                    <h3 class="feature-title">Squad Chat Sharing</h3>
-                    <p class="feature-desc">Roommates or coding squads can link multiple accounts to a single Telegram group chat so everyone stays accountable.</p>
+                    <div class="feature-icon-wrapper">⏳</div>
+                    <h3 class="feature-title">Live IST Countdown</h3>
+                    <p class="feature-desc">Real-time countdown timer to 05:30 AM IST daily reset keeps urgency visible so you never miss a daily challenge.</p>
                 </div>
 
                 <div class="feature-box">
-                    <div class="feature-icon-wrapper">⚡</div>
-                    <h3 class="feature-title">Instant PIN Pairing</h3>
-                    <p class="feature-desc">No complicated bot configuration. Enter a 6-digit PIN in Telegram and you're paired in under 5 seconds.</p>
+                    <div class="feature-icon-wrapper">🚨</div>
+                    <h3 class="feature-title">Emergency Airbag</h3>
+                    <p class="feature-desc">Automated fail-safe submits your pre-configured backup solution before the daily reset window closes.</p>
                 </div>
             </div>
         </section>

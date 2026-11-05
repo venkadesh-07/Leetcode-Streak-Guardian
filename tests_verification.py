@@ -517,14 +517,12 @@ class SecurityControlsTestCase(unittest.TestCase):
         print("  [PASS] Test 16: API token generation and uniqueness verified.")
 
     def test_17_multi_channel_settings(self):
-        """Verify email and telegram notification preferences and test-email route."""
+        """Verify email notification preferences and test-email route."""
         with self.app.app_context():
             user = User(email="channeluser@example.com", reminder_email="channeluser@example.com", leetcode_username="coder_1")
             user.set_password("Password123!")
             user.reminder_enabled = True
             user.notify_email = False
-            user.notify_telegram = True
-            user.telegram_chat_id = "987654321"
             db.session.add(user)
             db.session.commit()
             user_id = user.id
@@ -533,8 +531,6 @@ class SecurityControlsTestCase(unittest.TestCase):
         with self.app.app_context():
             u = db.session.get(User, user_id)
             self.assertFalse(u.notify_email)
-            self.assertTrue(u.notify_telegram)
-            self.assertEqual(u.telegram_chat_id, "987654321")
 
         # Login as user and verify send_test_email route rejects state without CSRF
         with self.client.session_transaction() as sess:
